@@ -7,7 +7,7 @@
 ### 1. Установка зависимостей
 
 ```bash
-pip install requests pytest pytest-mock pytest-cov
+pip install requests pytest pytest-mock pytest-cov openai
 ```
 
 ### 2. Настройка API токенов
