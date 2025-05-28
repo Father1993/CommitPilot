@@ -224,7 +224,7 @@ def git_commit(message: str) -> bool:
     try:
         result = subprocess.run(['git', 'commit', '-m', message], capture_output=True, encoding='utf-8')
         if result.returncode == 0:
-            logger.info(f"✅ Создан коммит: {message}")
+            logger.info(f"✅ Создан коммит с сообщением: \"{message}\"")
             return True
         else:
             logger.warning(f"⚠️ Не удалось создать коммит: {result.stderr}")
@@ -445,13 +445,16 @@ def main():
         else:
             commit_message = generate_commit_message_with_huggingface(diff, status, config)
     
+    # Выводим сгенерированное сообщение перед созданием коммита
+    print(f"📝 Сообщение коммита: \"{commit_message}\"")
+    
     # Создаем коммит
     git_commit(commit_message)
     
     # Отправляем изменения, если не указан флаг --commit-only
     if not args.commit_only:
         branch = args.branch or config['DEFAULT']['branch']
-        print(f"🚀 Отправка изменений в ветку {branch}...")
+        print(f"🚀 Отправка изменений в ветку {branch} с сообщением: \"{commit_message}\"...")
         git_push(branch)
 
 if __name__ == "__main__":
