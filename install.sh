@@ -70,6 +70,18 @@ fi
 echo -e "\n${YELLOW}Установка зависимостей Python...${NC}"
 $PIP_CMD install requests
 
+# Спросить о необходимости установки OpenAI SDK
+echo -e "\n${YELLOW}Хотите установить библиотеку OpenAI для поддержки OpenAI API? (y/n)${NC}"
+read -r install_openai
+
+if [ "$install_openai" = "y" ] || [ "$install_openai" = "Y" ]; then
+    echo -e "${YELLOW}Установка библиотеки OpenAI...${NC}"
+    $PIP_CMD install openai
+    echo -e "${GREEN}✓ Библиотека OpenAI установлена${NC}"
+else
+    echo -e "${YELLOW}Пропуск установки библиотеки OpenAI. Вы можете установить ее позже с помощью команды 'pip install openai'${NC}"
+fi
+
 # Получение текущего пути
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -122,7 +134,7 @@ fi
 echo -e "\n${YELLOW}Создание конфигурационного файла...${NC}"
 CONFIG_PATH="$SCRIPT_DIR/config.ini"
 if [ ! -f "$CONFIG_PATH" ]; then
-    echo -e "# CommitPilot - Конфигурация\n# Для настройки отредактируйте этот файл вручную\n\n[DEFAULT]\n# Выберите провайдера AI: huggingface или openai\napi_provider = huggingface\n\n# Вставьте ваш Hugging Face API токен (получите на https://huggingface.co/settings/tokens)\nhuggingface_token = YOUR_TOKEN_HERE\n\n# Вставьте ваш OpenAI API токен (если используете OpenAI)\nopenai_token = \n\n# Ветка по умолчанию для git push\nbranch = dev\n\n# Максимальный размер diff для отправки в AI API\nmax_diff_size = 5000" > "$CONFIG_PATH"
+    echo -e "# CommitPilot - Конфигурация\n# Для настройки отредактируйте этот файл вручную\n\n[DEFAULT]\n# Выберите провайдера AI: huggingface или openai\napi_provider = huggingface\n\n# Вставьте ваш Hugging Face API токен (получите на https://huggingface.co/settings/tokens)\n# Используется модель mistralai/Mixtral-8x7B-Instruct-v0.1\nhuggingface_token = YOUR_TOKEN_HERE\n\n# Вставьте ваш OpenAI API токен (если используете OpenAI)\n# Требуется установленная библиотека openai: pip install openai\nopenai_token = \n\n# Ветка по умолчанию для git push\nbranch = dev\n\n# Максимальный размер diff для отправки в AI API\nmax_diff_size = 5000" > "$CONFIG_PATH"
     echo -e "${GREEN}✓ Создан файл конфигурации $CONFIG_PATH${NC}"
     echo -e "${YELLOW}⚠️ Пожалуйста, отредактируйте файл конфигурации и добавьте ваш API токен${NC}"
 else
