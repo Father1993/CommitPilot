@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Константы
 VERSION = "1.0.0"
 CONFIG_FILE = Path('.commits', 'config.ini')
-DEFAULT_COMMIT_MESSAGE = "chore: автоматический коммит изменений"
+DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 
 # Импортируем модуль поддержки OpenAI, если он доступен
 try:
@@ -147,47 +147,73 @@ def generate_commit_message_with_huggingface(diff: str, status: str, config: con
         diff = diff[:max_size] + "\n... (truncated)"
         logger.debug(f"Размер diff превышает лимит. Обрезано до {max_size} символов.")
     
-    # Формируем промпт для модели
-    prompt = f"""Проанализируй изменения в git и создай краткое, но информативное сообщение для коммита.
+    # Используем модель Mixtral вместо Zephyr для лучших результатов
+    API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
+    headers = {"Authorization": f"Bearer {token}"}
     
-Статус изменений:
+    # Системный промпт и пользовательский промпт
+    system_prompt = "You are a helpful AI assistant that specializes in creating conventional commit messages."
+    user_prompt = f"""Generate a commit message for the following changes:
+
+Git Status:
 {status}
 
-Изменения (diff):
-{diff}
+Git Diff (partial):
+{diff[:500]}...
 
-Создай однострочное сообщение коммита в формате: тип(область): сообщение
-Где тип - один из: feat, fix, docs, style, refactor, test, chore
-Например: "feat(auth): добавлена авторизация через OAuth"
-Пиши только сообщение коммита, без дополнительного текста.
+Instructions:
+- Create a single-line commit message in format: 'type(scope): message'
+- Choose 'type' from: feat, fix, docs, style, refactor, test, chore
+- Focus on WHAT changed and WHY
+- Keep it under 72 characters
+- Be specific and descriptive
+
+Format your response as just the commit message text without explanations.
 """
-    
-    # Запрос к Hugging Face Inference API
-    API_URL = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta"
-    headers = {"Authorization": f"Bearer {token}"}
-    payload = {"inputs": prompt, "parameters": {"max_new_tokens": 100}}
+
+    # Формируем запрос к API в формате chat completion
+    payload = {
+        "inputs": f"<s>[INST] {system_prompt} [/INST]</s>\n<s>[INST] {user_prompt} [/INST]",
+        "parameters": {
+            "max_new_tokens": 100,
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "return_full_text": False
+        }
+    }
     
     try:
-        logger.debug("Отправка запроса к Hugging Face API...")
+        logger.debug("Отправка запроса к Hugging Face API (Mixtral)...")
         response = requests.post(API_URL, headers=headers, json=payload)
         response.raise_for_status()
         result = response.json()
         
+        logger.debug(f"Ответ API: {result}")
+        
         # Обработка ответа API
         if isinstance(result, list) and len(result) > 0:
-            message = result[0].get('generated_text', '')
-            # Извлекаем только сообщение коммита из ответа
+            message = result[0].get('generated_text', '').strip()
+            logger.debug(f"Сгенерированный текст: {message}")
+            
+            # Очищаем от возможных маркеров
+            message = message.replace('</s>', '').strip()
+            
+            # Ищем строки в формате Conventional Commits
             lines = message.split('\n')
             for line in lines:
-                if any(line.startswith(prefix) for prefix in ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore']):
+                line = line.strip()
+                if line and any(line.startswith(prefix) for prefix in ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore']):
+                    return line
+            
+            # Если не нашли формат, возвращаем первую непустую строку
+            for line in lines:
+                if line.strip():
                     return line.strip()
             
-            # Если не нашли формат, возвращаем последнюю непустую строку
-            for line in reversed(lines):
-                if line.strip() and not line.strip().startswith('```'):
-                    return line.strip()
-                    
-            return lines[-1].strip()
+            # Если сообщение одно и не содержит переносов строк, возвращаем его целиком
+            if message and '\n' not in message:
+                return message
+                
         logger.warning("Не удалось извлечь сообщение из ответа API. Используется стандартное сообщение.")
         return DEFAULT_COMMIT_MESSAGE
     except Exception as e:

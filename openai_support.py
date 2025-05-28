@@ -7,19 +7,26 @@
 @author: CommitPilot Team
 @version: 1.0.0
 @license: MIT
-@requires: requests
+@requires: openai
 """
 
-import requests
 import logging
 import configparser
 from typing import Dict, Any
+
+# Импортируем OpenAI SDK
+try:
+    from openai import OpenAI
+    OPENAI_SDK_AVAILABLE = True
+except ImportError:
+    OPENAI_SDK_AVAILABLE = False
+    import requests
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
 
 # Константы
-DEFAULT_COMMIT_MESSAGE = "chore: автоматический коммит изменений"
+DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 
 def generate_commit_message_with_openai(diff: str, status: str, config: configparser.ConfigParser) -> str:
     """
@@ -59,51 +66,87 @@ def generate_commit_message_with_openai(diff: str, status: str, config: configpa
 Пиши только сообщение коммита, без дополнительного текста.
 """
     
-    # Запрос к OpenAI API
-    API_URL = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "model": "gpt-3.5-turbo",
-        "messages": [
-            {"role": "system", "content": "Ты - ассистент, который создает качественные сообщения для git-коммитов."},
-            {"role": "user", "content": prompt}
-        ],
-        "max_tokens": 100,
-        "temperature": 0.5
-    }
-    
-    try:
-        logger.debug("Отправка запроса к OpenAI API...")
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=10)
-        response.raise_for_status()
-        result = response.json()
+    # Используем новый SDK если доступен
+    if OPENAI_SDK_AVAILABLE:
+        try:
+            logger.debug("Используется новый OpenAI SDK...")
+            client = OpenAI(api_key=token)
+            
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Ты - ассистент, который создает качественные сообщения для git-коммитов."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=100,
+                temperature=0.5
+            )
+            
+            # Извлекаем сообщение из ответа
+            message = completion.choices[0].message.content.strip()
+            
+            # Обрабатываем ответ для получения только строки коммита
+            lines = message.split('\n')
+            for line in lines:
+                if any(line.startswith(prefix) for prefix in ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore']):
+                    return line.strip()
+            
+            # Если не нашли формат, возвращаем первую непустую строку
+            for line in lines:
+                if line.strip() and not line.strip().startswith('```'):
+                    return line.strip()
+                    
+            logger.debug(f"Не удалось найти формат в сообщении: {message}")
+            return message
+        except Exception as e:
+            logger.error(f"❌ Ошибка при использовании OpenAI SDK: {e}")
+            return DEFAULT_COMMIT_MESSAGE
+    else:
+        # Запасной вариант - старый метод через HTTP запрос
+        API_URL = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
         
-        # Извлекаем сообщение из ответа
-        message = result["choices"][0]["message"]["content"].strip()
+        payload = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": "Ты - ассистент, который создает качественные сообщения для git-коммитов."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 100,
+            "temperature": 0.5
+        }
         
-        # Обрабатываем ответ для получения только строки коммита
-        lines = message.split('\n')
-        for line in lines:
-            if any(line.startswith(prefix) for prefix in ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore']):
-                return line.strip()
-        
-        # Если не нашли формат, возвращаем первую непустую строку
-        for line in lines:
-            if line.strip() and not line.strip().startswith('```'):
-                return line.strip()
-                
-        logger.debug(f"Не удалось найти формат в сообщении: {message}")
-        return message
-    except requests.exceptions.Timeout:
-        logger.error("⏱️ Превышено время ожидания запроса к OpenAI API")
-        return DEFAULT_COMMIT_MESSAGE
-    except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Ошибка сети при запросе к OpenAI API: {e}")
-        return DEFAULT_COMMIT_MESSAGE
-    except Exception as e:
-        logger.error(f"❌ Ошибка при запросе к OpenAI API: {e}")
-        return DEFAULT_COMMIT_MESSAGE 
+        try:
+            logger.debug("Отправка запроса к OpenAI API (HTTP)...")
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=10)
+            response.raise_for_status()
+            result = response.json()
+            
+            # Извлекаем сообщение из ответа
+            message = result["choices"][0]["message"]["content"].strip()
+            
+            # Обрабатываем ответ для получения только строки коммита
+            lines = message.split('\n')
+            for line in lines:
+                if any(line.startswith(prefix) for prefix in ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore']):
+                    return line.strip()
+            
+            # Если не нашли формат, возвращаем первую непустую строку
+            for line in lines:
+                if line.strip() and not line.strip().startswith('```'):
+                    return line.strip()
+                    
+            logger.debug(f"Не удалось найти формат в сообщении: {message}")
+            return message
+        except requests.exceptions.Timeout:
+            logger.error("⏱️ Превышено время ожидания запроса к OpenAI API")
+            return DEFAULT_COMMIT_MESSAGE
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Ошибка сети при запросе к OpenAI API: {e}")
+            return DEFAULT_COMMIT_MESSAGE
+        except Exception as e:
+            logger.error(f"❌ Ошибка при запросе к OpenAI API: {e}")
+            return DEFAULT_COMMIT_MESSAGE 
