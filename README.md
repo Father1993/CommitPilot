@@ -24,7 +24,7 @@
 
 ```bash
 # Клонируйте репозиторий CommitPilot
-git clone https://github.com/yourusername/CommitPilot.git
+git clone https://github.com/Father1993/CommitPilot.git
 cd CommitPilot
 
 # Запустите установочный скрипт

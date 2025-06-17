@@ -4,7 +4,7 @@
 """
 @file: auto_commit.py
 @description: Автоматизация git-коммитов с использованием AI для создания осмысленных сообщений
-@author: CommitPilot Team
+@author: Andrej Spinej
 @version: 1.0.0
 @license: MIT
 @requires: requests
