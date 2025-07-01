@@ -51,7 +51,7 @@ def setup_config() -> configparser.ConfigParser:
     Создает конфигурационный файл, если он не существует, или читает существующий
     
     Returns:
-        ConfigParser: Объект с настройками приложения
+        ConfigParser: Объект с настройками приложения 
     """
     if not CONFIG_FILE.exists():
         config = configparser.ConfigParser()
