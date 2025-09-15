@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 VERSION = "1.0.0"
 CONFIG_FILE = Path(".commits", "config.ini")
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
+API_URL = (
+    "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
+)
 
 # Импортируем модуль поддержки OpenAI, если он доступен
 try:
@@ -163,8 +166,7 @@ def generate_commit_message_with_huggingface(
         diff = diff[:max_size] + "\n... (truncated)"
         logger.debug(f"Размер diff превышает лимит. Обрезано до {max_size} символов.")
 
-    # Используем модель Mixtral вместо Zephyr для лучших результатов
-    API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
+    # Модель Mixtral
     headers = {"Authorization": f"Bearer {token}"}
 
     # Системный промпт и пользовательский промпт
