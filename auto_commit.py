@@ -134,7 +134,7 @@ def generate_commit_message_with_huggingface(
     diff: str, status: str, config: configparser.ConfigParser
 ) -> str:
     """
-    Генерирует сообщение коммита с помощью Hugging Face Inference API
+    Генерирует сообщение коммита с помощью Hugging Face API
 
     Args:
         diff: Текст изменений (git diff)
