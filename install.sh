@@ -127,7 +127,7 @@ fi
 echo -e "\n${YELLOW}Создание конфигурационного файла...${NC}"
 CONFIG_PATH="$SCRIPT_DIR/config.ini"
 if [ ! -f "$CONFIG_PATH" ]; then
-    echo -e "# CommitPilot - Конфигурация\n# Для настройки отредактируйте этот файл вручную\n\n[DEFAULT]\n# Выберите провайдера AI: aitunnel (по умолчанию), huggingface или openai\napi_provider = aitunnel\n\n# AITUNNEL API настройки (рекомендуется)\n# Токен можно также указать в файле .env как AI_TUNNEL=sk-aitunnel-xxx\naitunnel_token = \naitunnel_base_url = https://api.aitunnel.ru/v1/\naitunnel_model = gpt-4.1\n\n# Hugging Face API настройки\nhuggingface_token = \n\n# OpenAI API настройки\nopenai_token = \n\n# Ветка по умолчанию для git push\nbranch = dev\n\n# Максимальный размер diff для отправки в AI API\nmax_diff_size = 5000" > "$CONFIG_PATH"
+    echo -e "# CommitPilot - Конфигурация\n# Для настройки отредактируйте этот файл вручную\n\n[DEFAULT]\n# Выберите провайдера AI: aitunnel (по умолчанию), huggingface или openai\napi_provider = aitunnel\n\n# AITUNNEL API настройки (рекомендуется)\n# Токен можно также указать в файле .env как AI_TUNNEL=sk-aitunnel-xxx\naitunnel_token = \naitunnel_base_url = https://api.aitunnel.ru/v1/\naitunnel_model = gpt-4.1\n\n# Hugging Face API настройки\nhuggingface_token = \n\n# OpenAI API настройки\nopenai_token = \n\n# Ветка по умолчанию для git push\nbranch = dev\n\n# Максимальный размер diff для отправки в AI API\nmax_diff_size = 7000" > "$CONFIG_PATH"
     echo -e "${GREEN}✓ Создан файл конфигурации $CONFIG_PATH${NC}"
     echo -e "${YELLOW}⚠️ Пожалуйста, отредактируйте файл конфигурации и добавьте ваш API токен${NC}"
     echo -e "${YELLOW}   Или создайте файл .env в корне проекта со строкой: AI_TUNNEL=sk-aitunnel-ваш_токен${NC}"
