@@ -120,6 +120,9 @@ git push origin main
 ### Выбор провайдера AI
 
 ```bash
+# Использование AITUNNEL (по умолчанию)
+acommit -p aitunnel
+
 # Использование Hugging Face
 acommit -p huggingface
 
@@ -148,11 +151,13 @@ acommit -p openai
 ## Шпаргалка
 
 ```
-acommit           # Стандартный коммит с отправкой
-acommit-here      # Только коммит без push
-acommit-dev       # Коммит в ветку dev
-acommit-main      # Коммит в ветку main
-acommit -b NAME   # Коммит в указанную ветку
-acommit -m "MSG"  # Коммит с указанным сообщением
-acommit -p openai # Использовать OpenAI вместо Hugging Face
+acommit              # Стандартный коммит с отправкой (использует AITUNNEL по умолчанию)
+acommit-here         # Только коммит без push
+acommit-dev          # Коммит в ветку dev
+acommit-main         # Коммит в ветку main
+acommit -b NAME      # Коммит в указанную ветку
+acommit -m "MSG"     # Коммит с указанным сообщением
+acommit -p aitunnel  # Использовать AITUNNEL (по умолчанию)
+acommit -p openai    # Использовать OpenAI
+acommit -p huggingface # Использовать Hugging Face
 ```

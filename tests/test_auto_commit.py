@@ -1,6 +1,7 @@
 import os
 import sys
 import pytest
+import configparser
 from pathlib import Path
 from unittest.mock import patch, mock_open
 
@@ -15,7 +16,10 @@ def mock_config_file(tmp_path):
     config_path = tmp_path / "config.ini"
     config_content = """
 [DEFAULT]
-api_provider = huggingface
+api_provider = aitunnel
+aitunnel_token = test_token
+aitunnel_base_url = https://api.aitunnel.ru/v1/
+aitunnel_model = deepseek-r1
 huggingface_token = test_token
 openai_token = 
 branch = dev
@@ -26,10 +30,11 @@ max_diff_size = 5000
 
 def test_setup_config_existing_file(mock_config_file):
     """Тестирует функцию setup_config когда файл конфигурации существует."""
-    with patch('auto_commit.CONFIG_FILE', mock_config_file):
+    with patch('auto_commit.CONFIG_FILE', mock_config_file), \
+         patch.dict(os.environ, {}, clear=True):
         config = auto_commit.setup_config()
-        assert config['DEFAULT']['api_provider'] == 'huggingface'
-        assert config['DEFAULT']['huggingface_token'] == 'test_token'
+        assert config['DEFAULT']['api_provider'] == 'aitunnel'
+        assert config['DEFAULT']['aitunnel_token'] == 'test_token'
         assert config['DEFAULT']['branch'] == 'dev'
 
 def test_setup_config_new_file():
@@ -38,7 +43,8 @@ def test_setup_config_new_file():
     
     with patch('auto_commit.CONFIG_FILE', mock_config), \
          patch('os.makedirs') as mock_makedirs, \
-         patch('builtins.open', mock_open()) as m:
+         patch('builtins.open', mock_open()) as m, \
+         patch.dict(os.environ, {}, clear=True):
         
         config = auto_commit.setup_config()
         
@@ -47,7 +53,7 @@ def test_setup_config_new_file():
         m.assert_called_once()
         
         # Проверяем значения по умолчанию
-        assert config['DEFAULT']['api_provider'] == 'huggingface'
+        assert config['DEFAULT']['api_provider'] == 'aitunnel'
         assert config['DEFAULT']['branch'] == 'main'
         assert config['DEFAULT']['max_diff_size'] == '5000'
 
@@ -166,8 +172,14 @@ def test_git_commit_failure():
 
 def test_generate_message_only_no_changes():
     """Тестирует генерацию сообщения когда нет изменений."""
+    mock_config = configparser.ConfigParser()
+    mock_config['DEFAULT'] = {
+        'api_provider': 'aitunnel',
+        'aitunnel_token': '',
+    }
+    
     with patch('auto_commit.get_git_status', return_value=""):
-        result = auto_commit.generate_message_only({})
+        result = auto_commit.generate_message_only(mock_config)
         
         # Проверяем, что возвращается сообщение по умолчанию
         assert result == auto_commit.DEFAULT_COMMIT_MESSAGE

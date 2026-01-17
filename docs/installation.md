@@ -15,10 +15,12 @@
 
 -   Python 3.6+
 -   Git
--   Установленная библиотека `requests`
--   Установленная библиотека `openai` (опционально, для использования OpenAI API)
+-   Установленные библиотеки:
+    -   `requests` (обязательно)
+    -   `python-dotenv` (обязательно, для поддержки .env файлов)
+    -   `openai` (обязательно, для использования AITUNNEL и OpenAI API)
 -   Доступ к интернету для API запросов
--   API ключ Hugging Face или OpenAI (можно получить бесплатно)
+-   API ключ AITUNNEL (рекомендуется), Hugging Face или OpenAI
 
 ## Быстрая установка
 
@@ -39,10 +41,11 @@ source ~/.bashrc   # или ~/.zshrc
 Скрипт автоматически:
 
 -   Проверит необходимые зависимости
--   Установит библиотеку requests
+-   Установит библиотеки requests, python-dotenv и openai
 -   Настроит Git hooks (если проект является git-репозиторием)
 -   Создаст удобные алиасы
 -   Создаст файл конфигурации `config.ini`
+-   Создаст пример файла `.env.example`
 
 ## Установка вручную
 
@@ -58,7 +61,7 @@ source ~/.bashrc   # или ~/.zshrc
 2. Установите зависимости:
 
     ```bash
-    pip install requests
+    pip install requests python-dotenv openai
     ```
 
 3. Сделайте скрипты исполняемыми:
@@ -87,50 +90,77 @@ source ~/.bashrc   # или ~/.zshrc
     echo "alias acommit-here=\"python $INSTALL_DIR/auto_commit.py -c\"" >> ~/.bashrc
     ```
 
-6. Создайте файл конфигурации `config.ini`:
+6. Создайте файл конфигурации `config.ini` или `.env`:
+
+    **Вариант 1: Использование .env файла (рекомендуется)**
+    
     ```bash
-    cat > config.ini << EOL
+    cat > .env << EOL
+    # AITUNNEL API токен
+    AI_TUNNEL=sk-aitunnel-ваш_токен_здесь
+    EOL
     ```
 
-# CommitPilot - Конфигурация
-
-# Для настройки отредактируйте этот файл вручную
-
-[DEFAULT]
-
-# Выберите провайдера AI: huggingface или openai
-
-api_provider = huggingface
-
-# Вставьте ваш Hugging Face API токен
-
-huggingface_token = YOUR_TOKEN_HERE
-
-# Вставьте ваш OpenAI API токен (если используете OpenAI)
-
-openai_token =
-
-# Ветка по умолчанию для git push
-
-branch = dev
-
-# Максимальный размер diff для отправки в AI API
-
-max_diff_size = 5000
-EOL
-
-````
+    **Вариант 2: Использование config.ini**
+    
+    ```bash
+    cat > config.ini << EOL
+    # CommitPilot - Конфигурация
+    # Для настройки отредактируйте этот файл вручную
+    
+    [DEFAULT]
+    # Выберите провайдера AI: aitunnel (по умолчанию), huggingface или openai
+    api_provider = aitunnel
+    
+    # AITUNNEL API настройки
+    aitunnel_token = sk-aitunnel-ваш_токен_здесь
+    aitunnel_base_url = https://api.aitunnel.ru/v1/
+    aitunnel_model = deepseek-r1
+    
+    # Hugging Face API токен
+    huggingface_token = 
+    
+    # OpenAI API токен
+    openai_token = 
+    
+    # Ветка по умолчанию для git push
+    branch = dev
+    
+    # Максимальный размер diff для отправки в AI API
+    max_diff_size = 5000
+    EOL
+    ```
 
 ## Настройка API ключей
 
-После установки вам нужно вручную отредактировать файл `config.ini`:
+После установки вам нужно настроить API токен одним из способов:
 
-### Получение Hugging Face токена (рекомендуется)
+### Способ 1: Использование .env файла (рекомендуется)
+
+1. Создайте файл `.env` в корне проекта:
+   ```bash
+   echo "AI_TUNNEL=sk-aitunnel-ваш_токен_здесь" > .env
+   ```
+
+2. Получите токен AITUNNEL на [aitunnel.ru](https://aitunnel.ru/)
+
+### Способ 2: Использование config.ini
+
+Отредактируйте файл `config.ini` и добавьте токен в соответствующее поле.
+
+### Получение AITUNNEL токена (рекомендуется)
+
+1. Зарегистрируйтесь на [aitunnel.ru](https://aitunnel.ru/)
+2. Создайте API ключ в личном кабинете
+3. Добавьте токен в файл `.env` как `AI_TUNNEL=sk-aitunnel-xxx` или в `config.ini` как `aitunnel_token = sk-aitunnel-xxx`
+
+### Получение Hugging Face токена (альтернативно)
 
 1. Зарегистрируйтесь на [huggingface.co](https://huggingface.co/)
 2. Перейдите в [настройки токенов](https://huggingface.co/settings/tokens)
 3. Создайте новый токен с правами чтения (READ)
 4. Вставьте токен в поле `huggingface_token` в файле `config.ini`
+5. Измените значение `api_provider` на `huggingface`
 
 ### Получение OpenAI токена (альтернативно)
 
@@ -204,7 +234,7 @@ chmod +x .git/hooks/prepare-commit-msg
 
 ### Ошибка доступа к API
 
-Проверьте ваш API ключ в файле `config.ini` и убедитесь, что он действительный.
+Проверьте ваш API ключ в файле `.env` или `config.ini` и убедитесь, что он действительный. Убедитесь, что переменная окружения `AI_TUNNEL` правильно установлена, если используете `.env` файл.
 
 ### Команда acommit не найдена
 

@@ -19,6 +19,14 @@ import configparser
 import logging
 from typing import Dict, Optional, Any, Tuple
 
+# Попытка загрузить переменные из .env файла
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -31,36 +39,52 @@ API_URL = (
     "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
 )
 
-# Импортируем модуль поддержки OpenAI, если он доступен
+# Импортируем модули поддержки AI провайдеров
+OPENAI_SUPPORT = False
+AITUNNEL_SUPPORT = False
+
 try:
     from .openai_support import generate_commit_message_with_openai
-
     OPENAI_SUPPORT = True
 except (ImportError, ModuleNotFoundError):
     try:
-        # Пробуем импортировать из текущей директории
         sys.path.append(str(Path(__file__).parent))
         from openai_support import generate_commit_message_with_openai
-
         OPENAI_SUPPORT = True
     except (ImportError, ModuleNotFoundError):
-        OPENAI_SUPPORT = False
-        logger.debug(
-            "Модуль поддержки OpenAI не найден. Будет использоваться только Hugging Face API."
-        )
+        logger.debug("Модуль поддержки OpenAI не найден.")
+
+try:
+    from .aitunnel_support import generate_commit_message_with_aitunnel
+    AITUNNEL_SUPPORT = True
+except (ImportError, ModuleNotFoundError):
+    try:
+        sys.path.append(str(Path(__file__).parent))
+        from aitunnel_support import generate_commit_message_with_aitunnel
+        AITUNNEL_SUPPORT = True
+    except (ImportError, ModuleNotFoundError):
+        logger.debug("Модуль поддержки AITUNNEL не найден.")
 
 
 def setup_config() -> configparser.ConfigParser:
     """
     Создает конфигурационный файл, если он не существует, или читает существующий
+    Также загружает переменные из .env файла, если он доступен
 
     Returns:
         ConfigParser: Объект с настройками приложения
     """
+    # Загружаем переменные из .env файла
+    if DOTENV_AVAILABLE:
+        load_dotenv()
+    
     if not CONFIG_FILE.exists():
         config = configparser.ConfigParser()
         config["DEFAULT"] = {
-            "api_provider": "huggingface",
+            "api_provider": "aitunnel",
+            "aitunnel_token": "",
+            "aitunnel_base_url": "https://api.aitunnel.ru/v1/",
+            "aitunnel_model": "deepseek-r1",
             "huggingface_token": "",
             "openai_token": "",
             "branch": "main",
@@ -73,12 +97,18 @@ def setup_config() -> configparser.ConfigParser:
 
         logger.info(f"✅ Создан конфигурационный файл {CONFIG_FILE}")
         logger.warning(
-            "⚠️ Пожалуйста, добавьте API токен для выбранного провайдера в файл конфигурации"
+            "⚠️ Пожалуйста, добавьте API токен для выбранного провайдера в файл конфигурации или .env"
         )
-        return config
-
+    
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE)
+    
+    # Переопределяем значения из .env файла, если они есть
+    env_token = os.getenv("AI_TUNNEL")
+    if env_token:
+        config["DEFAULT"]["aitunnel_token"] = env_token
+        logger.debug("Загружен AITUNNEL токен из переменной окружения AI_TUNNEL")
+    
     return config
 
 
@@ -344,13 +374,19 @@ def generate_message_only(config: configparser.ConfigParser) -> str:
         return DEFAULT_COMMIT_MESSAGE
 
     # Выбираем провайдера AI
-    provider = config["DEFAULT"].get("api_provider", "huggingface")
+    provider = config["DEFAULT"].get("api_provider", "aitunnel")
     logger.debug(f"Используется провайдер AI: {provider}")
 
-    if provider.lower() == "openai" and OPENAI_SUPPORT:
+    if provider.lower() == "aitunnel" and AITUNNEL_SUPPORT:
+        return generate_commit_message_with_aitunnel(diff, status, config)
+    elif provider.lower() == "openai" and OPENAI_SUPPORT:
         return generate_commit_message_with_openai(diff, status, config)
     else:
-        if provider.lower() == "openai" and not OPENAI_SUPPORT:
+        if provider.lower() == "aitunnel" and not AITUNNEL_SUPPORT:
+            logger.warning(
+                "AITUNNEL API выбран, но модуль не установлен. Используется Hugging Face."
+            )
+        elif provider.lower() == "openai" and not OPENAI_SUPPORT:
             logger.warning(
                 "OpenAI API выбран, но модуль не установлен. Используется Hugging Face."
             )
@@ -375,8 +411,8 @@ def main():
     parser.add_argument(
         "-p",
         "--provider",
-        choices=["huggingface", "openai"],
-        help="Провайдер AI (huggingface или openai)",
+        choices=["huggingface", "openai", "aitunnel"],
+        help="Провайдер AI (huggingface, openai или aitunnel)",
     )
     parser.add_argument("--setup", action="store_true", help="Настройка конфигурации")
     parser.add_argument(
@@ -415,17 +451,26 @@ def main():
     # Тестирование системы
     if args.test:
         print("🧪 Проверка настроек CommitPilot...")
-        if config["DEFAULT"]["api_provider"] == "huggingface":
-            if config["DEFAULT"]["huggingface_token"]:
+        provider = config["DEFAULT"].get("api_provider", "aitunnel")
+        
+        if provider == "aitunnel":
+            token = config["DEFAULT"].get("aitunnel_token", "") or os.getenv("AI_TUNNEL", "")
+            if token:
+                print("✅ AITUNNEL API токен настроен")
+            else:
+                print("❌ AITUNNEL API токен не настроен (проверьте config.ini или .env файл)")
+        elif provider == "huggingface":
+            if config["DEFAULT"].get("huggingface_token", ""):
                 print("✅ Hugging Face API токен настроен")
             else:
                 print("❌ Hugging Face API токен не настроен")
-        elif config["DEFAULT"]["api_provider"] == "openai":
-            if config["DEFAULT"]["openai_token"]:
+        elif provider == "openai":
+            if config["DEFAULT"].get("openai_token", ""):
                 print("✅ OpenAI API токен настроен")
             else:
                 print("❌ OpenAI API токен не настроен")
 
+        print(f"✅ Провайдер: {provider}")
         print(f"✅ Ветка по умолчанию: {config['DEFAULT']['branch']}")
 
         # Тестируем генерацию сообщения
@@ -480,6 +525,11 @@ def main():
         print(
             f"📝 Пожалуйста, отредактируйте файл {CONFIG_FILE} вручную и добавьте ваш API токен"
         )
+        print("   Или создайте файл .env в корне проекта со строкой:")
+        print("   AI_TUNNEL=sk-aitunnel-ваш_токен")
+        print(
+            "   Для получения токена AITUNNEL: https://aitunnel.ru/"
+        )
         print(
             "   Для получения токена Hugging Face: https://huggingface.co/settings/tokens"
         )
@@ -499,29 +549,33 @@ def main():
         # Проверяем работу системы
         print("\n🧪 Проверка работы CommitPilot...")
         try:
-            # Проверяем валидность токена
-            if (
-                config["DEFAULT"]["api_provider"] == "huggingface"
-                and config["DEFAULT"]["huggingface_token"]
-            ):
-                print("✅ Hugging Face API токен настроен")
-                test_message = generate_message_only(config)
-                if test_message and test_message != DEFAULT_COMMIT_MESSAGE:
-                    print(f'✅ Пример сгенерированного сообщения: "{test_message}"')
-                else:
-                    print("⚠️ Не удалось сгенерировать тестовое сообщение")
-            elif (
-                config["DEFAULT"]["api_provider"] == "openai"
-                and config["DEFAULT"]["openai_token"]
-            ):
-                print("✅ OpenAI API токен настроен")
+            provider = config["DEFAULT"].get("api_provider", "aitunnel")
+            token_configured = False
+            
+            if provider == "aitunnel":
+                token = config["DEFAULT"].get("aitunnel_token", "") or os.getenv("AI_TUNNEL", "")
+                if token:
+                    print("✅ AITUNNEL API токен настроен")
+                    token_configured = True
+            elif provider == "huggingface":
+                token = config["DEFAULT"].get("huggingface_token", "")
+                if token:
+                    print("✅ Hugging Face API токен настроен")
+                    token_configured = True
+            elif provider == "openai":
+                token = config["DEFAULT"].get("openai_token", "")
+                if token:
+                    print("✅ OpenAI API токен настроен")
+                    token_configured = True
+            
+            if token_configured:
                 test_message = generate_message_only(config)
                 if test_message and test_message != DEFAULT_COMMIT_MESSAGE:
                     print(f'✅ Пример сгенерированного сообщения: "{test_message}"')
                 else:
                     print("⚠️ Не удалось сгенерировать тестовое сообщение")
             else:
-                print("⚠️ API токен не настроен. Пожалуйста, добавьте его в config.ini")
+                print("⚠️ API токен не настроен. Пожалуйста, добавьте его в config.ini или .env")
         except Exception as e:
             print(f"⚠️ Ошибка при проверке: {e}")
 
@@ -547,11 +601,17 @@ def main():
         print("🤖 Генерация сообщения коммита с помощью AI...")
 
         # Выбираем провайдера AI
-        provider = args.provider or config["DEFAULT"].get("api_provider", "huggingface")
+        provider = args.provider or config["DEFAULT"].get("api_provider", "aitunnel")
 
-        if provider.lower() == "openai" and OPENAI_SUPPORT:
+        if provider.lower() == "aitunnel" and AITUNNEL_SUPPORT:
+            commit_message = generate_commit_message_with_aitunnel(diff, status, config)
+        elif provider.lower() == "openai" and OPENAI_SUPPORT:
             commit_message = generate_commit_message_with_openai(diff, status, config)
         else:
+            if provider.lower() == "aitunnel" and not AITUNNEL_SUPPORT:
+                logger.warning("AITUNNEL API выбран, но модуль не установлен. Используется Hugging Face.")
+            elif provider.lower() == "openai" and not OPENAI_SUPPORT:
+                logger.warning("OpenAI API выбран, но модуль не установлен. Используется Hugging Face.")
             commit_message = generate_commit_message_with_huggingface(
                 diff, status, config
             )

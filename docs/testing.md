@@ -7,22 +7,34 @@
 ### 1. Установка зависимостей
 
 ```bash
-pip install requests pytest pytest-mock pytest-cov openai
+pip install requests pytest pytest-mock pytest-cov python-dotenv openai
 ```
 
 ### 2. Настройка API токенов
 
-Для полного тестирования вам потребуется API токен от Hugging Face или OpenAI:
+Для полного тестирования вам потребуется API токен от AITUNNEL, Hugging Face или OpenAI:
+
+**Вариант 1: Использование .env файла (рекомендуется)**
+
+1. Создайте файл `.env` в корне проекта:
+```env
+AI_TUNNEL=sk-aitunnel-ваш_токен_здесь
+```
+
+**Вариант 2: Использование config.ini**
 
 1. Откройте файл `config.ini` в корне проекта
 2. Добавьте ваш токен в соответствующее поле:
 
 ```ini
 [DEFAULT]
-# Выберите провайдера AI: huggingface или openai
-api_provider = huggingface
+# Выберите провайдера AI: aitunnel (по умолчанию), huggingface или openai
+api_provider = aitunnel
 
-# Вставьте ваш Hugging Face API токен
+# AITUNNEL API токен
+aitunnel_token = sk-aitunnel-ваш_токен_здесь
+
+# Или вставьте ваш Hugging Face API токен
 huggingface_token = ваш_токен_здесь
 
 # Или вставьте ваш OpenAI API токен
@@ -112,9 +124,10 @@ python auto_commit.py --get-message
 
 ### API токены не работают
 
-1. Проверьте, правильно ли указан токен в `config.ini`
-2. Убедитесь, что токен активен и не имеет ограничений
-3. Проверьте подключение к интернету
+1. Проверьте, правильно ли указан токен в `.env` или `config.ini`
+2. Убедитесь, что переменная окружения `AI_TUNNEL` правильно установлена, если используете `.env` файл
+3. Убедитесь, что токен активен и не имеет ограничений
+4. Проверьте подключение к интернету
 
 ### Тесты не находятся
 
