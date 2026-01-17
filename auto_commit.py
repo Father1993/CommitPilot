@@ -325,7 +325,6 @@ def git_add_all() -> None:
     """
     try:
         subprocess.run(["git", "add", "."], check=True, capture_output=True)
-        print("✅ Добавлены изменения в индекс")
     except Exception as e:
         print(f"❌ Ошибка при добавлении изменений: {e}")
         sys.exit(1)
@@ -349,7 +348,6 @@ def git_commit(message: str) -> bool:
             ["git", "commit", "-m", message], capture_output=True, encoding="utf-8"
         )
         if result.returncode == 0:
-            print("✅ Коммит создан")
             return True
         else:
             print(f"⚠️ Не удалось создать коммит: {result.stderr}")
@@ -632,8 +630,6 @@ def main():
     if args.message:
         commit_message = args.message
     else:
-        print("🤖 Генерация сообщения...")
-
         # Выбираем провайдера AI
         provider = args.provider or config["DEFAULT"].get("api_provider", "aitunnel")
 
