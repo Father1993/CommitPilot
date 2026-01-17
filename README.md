@@ -107,7 +107,7 @@ CommitPilot/
 
 | Провайдер | Модель | Токен |
 |-----------|--------|-------|
-| **AITUNNEL** (по умолчанию) | deepseek-r1 | `AI_TUNNEL` в `.env` |
+| **AITUNNEL** (по умолчанию) | mistral-nemo | `AI_TUNNEL` в `.env` |
 | OpenAI | gpt-4o-mini | `openai_token` в config.ini |
 | Hugging Face | Mixtral-8x7B | `huggingface_token` в config.ini |
 

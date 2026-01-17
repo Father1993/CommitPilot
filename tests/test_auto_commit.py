@@ -19,7 +19,7 @@ def mock_config_file(tmp_path):
 api_provider = aitunnel
 aitunnel_token = test_token
 aitunnel_base_url = https://api.aitunnel.ru/v1/
-aitunnel_model = deepseek-r1
+aitunnel_model = mistral-nemo
 huggingface_token = test_token
 openai_token = 
 branch = dev

@@ -94,9 +94,18 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
         setup_config._env_loaded = True
     
     # Проверяем кэш
-    if not force_reload and _config_cache is not None and CONFIG_FILE.exists():
-        current_mtime = CONFIG_FILE.stat().st_mtime
-        if current_mtime == _config_file_mtime:
+    if not force_reload and _config_cache is not None:
+        if CONFIG_FILE.exists():
+            try:
+                current_mtime = CONFIG_FILE.stat().st_mtime
+                if current_mtime == _config_file_mtime:
+                    return _config_cache
+            except OSError:
+                # Если файл был удален, сбрасываем кэш
+                _config_cache = None
+                _config_file_mtime = None
+        elif _config_file_mtime is None:
+            # Файл не существует и кэш пустой - возвращаем кэш
             return _config_cache
     
     if not CONFIG_FILE.exists():
@@ -105,7 +114,7 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
             "api_provider": "aitunnel",
             "aitunnel_token": "",
             "aitunnel_base_url": "https://api.aitunnel.ru/v1/",
-            "aitunnel_model": "deepseek-r1",
+            "aitunnel_model": "mistral-nemo",  # Оптимальная модель: быстрая и дешевая (3.84₽/1M ввод, 7.68₽/1M вывод)
             "huggingface_token": "",
             "openai_token": "",
             "branch": "main",
@@ -132,7 +141,10 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
     
     # Обновляем кэш
     _config_cache = config
-    _config_file_mtime = CONFIG_FILE.stat().st_mtime if CONFIG_FILE.exists() else None
+    try:
+        _config_file_mtime = CONFIG_FILE.stat().st_mtime if CONFIG_FILE.exists() else None
+    except OSError:
+        _config_file_mtime = None
     
     return config
 

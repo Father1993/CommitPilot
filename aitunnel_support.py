@@ -52,8 +52,8 @@ def generate_commit_message_with_aitunnel(diff: str, status: str, config: config
     # Получаем base_url из конфигурации или используем по умолчанию
     base_url = config['DEFAULT'].get('aitunnel_base_url', AITUNNEL_BASE_URL)
     
-    # Получаем модель из конфигурации или используем по умолчанию
-    model = config['DEFAULT'].get('aitunnel_model', 'deepseek-r1')
+    # Получаем модель из конфигурации или используем по умолчанию (оптимальная модель)
+    model = config['DEFAULT'].get('aitunnel_model', 'mistral-nemo')
     
     # Ограничиваем размер diff для API запроса
     max_size = int(config['DEFAULT'].get('max_diff_size', '5000'))
@@ -90,8 +90,8 @@ Write only the commit message, without additional text."""
                     {"role": "system", "content": "You are a helpful AI assistant that specializes in creating conventional commit messages."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=100,
-                temperature=0.5
+                max_tokens=100,  # Достаточно для короткого сообщения коммита
+                temperature=0.3  # Снижена для более детерминированных результатов
             )
             
             # Извлекаем сообщение из ответа
@@ -129,8 +129,8 @@ Write only the commit message, without additional text."""
                 {"role": "system", "content": "You are a helpful AI assistant that specializes in creating conventional commit messages."},
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": 100,
-            "temperature": 0.5
+            "max_tokens": 100,  # Достаточно для короткого сообщения коммита
+            "temperature": 0.3  # Снижена для более детерминированных результатов
         }
         
         try:
