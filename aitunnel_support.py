@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 AITUNNEL_BASE_URL = "https://api.aitunnel.ru/v1/"
 
+# Множество префиксов для быстрого поиска (оптимизация парсинга)
+COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
+
 def generate_commit_message_with_aitunnel(diff: str, status: str, config: configparser.ConfigParser) -> str:
     """
     Генерирует сообщение коммита с помощью AITUNNEL API

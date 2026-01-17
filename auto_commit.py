@@ -17,6 +17,7 @@ import requests
 from pathlib import Path
 import configparser
 import logging
+from functools import lru_cache
 from typing import Dict, Optional, Any, Tuple
 
 # Попытка загрузить переменные из .env файла
@@ -38,6 +39,13 @@ DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 API_URL = (
     "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
 )
+
+# Кэш для конфигурации (обновляется при изменении файла)
+_config_cache: Optional[configparser.ConfigParser] = None
+_config_file_mtime: Optional[float] = None
+
+# Множество префиксов для быстрого поиска (оптимизация парсинга)
+COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
 
 # Импортируем модули поддержки AI провайдеров
 OPENAI_SUPPORT = False
@@ -66,17 +74,30 @@ except (ImportError, ModuleNotFoundError):
         logger.debug("Модуль поддержки AITUNNEL не найден.")
 
 
-def setup_config() -> configparser.ConfigParser:
+def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
     """
     Создает конфигурационный файл, если он не существует, или читает существующий
     Также загружает переменные из .env файла, если он доступен
+    Использует кэширование для оптимизации производительности
+
+    Args:
+        force_reload: Принудительно перезагрузить конфигурацию из файла
 
     Returns:
         ConfigParser: Объект с настройками приложения
     """
-    # Загружаем переменные из .env файла
-    if DOTENV_AVAILABLE:
+    global _config_cache, _config_file_mtime
+    
+    # Загружаем переменные из .env файла (только один раз)
+    if DOTENV_AVAILABLE and not hasattr(setup_config, '_env_loaded'):
         load_dotenv()
+        setup_config._env_loaded = True
+    
+    # Проверяем кэш
+    if not force_reload and _config_cache is not None and CONFIG_FILE.exists():
+        current_mtime = CONFIG_FILE.stat().st_mtime
+        if current_mtime == _config_file_mtime:
+            return _config_cache
     
     if not CONFIG_FILE.exists():
         config = configparser.ConfigParser()
@@ -108,6 +129,10 @@ def setup_config() -> configparser.ConfigParser:
     if env_token:
         config["DEFAULT"]["aitunnel_token"] = env_token
         logger.debug("Загружен AITUNNEL токен из переменной окружения AI_TUNNEL")
+    
+    # Обновляем кэш
+    _config_cache = config
+    _config_file_mtime = CONFIG_FILE.stat().st_mtime if CONFIG_FILE.exists() else None
     
     return config
 
@@ -246,22 +271,11 @@ Format your response as just the commit message text without explanations.
             # Очищаем от возможных маркеров
             message = message.replace("</s>", "").strip()
 
-            # Ищем строки в формате Conventional Commits
+            # Ищем строки в формате Conventional Commits (оптимизировано с использованием множества)
             lines = message.split("\n")
             for line in lines:
                 line = line.strip()
-                if line and any(
-                    line.startswith(prefix)
-                    for prefix in [
-                        "feat",
-                        "fix",
-                        "docs",
-                        "style",
-                        "refactor",
-                        "test",
-                        "chore",
-                    ]
-                ):
+                if line and any(line.startswith(prefix) for prefix in COMMIT_PREFIXES):
                     return line
 
             # Если не нашли формат, возвращаем первую непустую строку
