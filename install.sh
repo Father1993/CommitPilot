@@ -127,7 +127,7 @@ fi
 echo -e "\n${YELLOW}Создание конфигурационного файла...${NC}"
 CONFIG_PATH="$SCRIPT_DIR/config.ini"
 if [ ! -f "$CONFIG_PATH" ]; then
-    echo -e "# CommitPilot - Конфигурация\n# Для настройки отредактируйте этот файл вручную\n\n[DEFAULT]\n# Выберите провайдера AI: aitunnel (по умолчанию), huggingface или openai\napi_provider = aitunnel\n\n# AITUNNEL API настройки (рекомендуется)\n# Токен можно также указать в файле .env как AI_TUNNEL=sk-aitunnel-xxx\naitunnel_token = \naitunnel_base_url = https://api.aitunnel.ru/v1/\naitunnel_model = gpt-4.1\n\n# Hugging Face API настройки\nhuggingface_token = \n\n# OpenAI API настройки\nopenai_token = \n\n# Ветка по умолчанию для git push\nbranch = dev\n\n# Максимальный размер diff для отправки в AI API\nmax_diff_size = 7000" > "$CONFIG_PATH"
+    echo -e "# CommitPilot - Конфигурация\n# Для настройки отредактируйте этот файл вручную\n\n[DEFAULT]\n# Выберите провайдера AI: aitunnel (по умолчанию), huggingface или openai\napi_provider = aitunnel\n\n# AITUNNEL API настройки (рекомендуется)\n# Токен можно также указать в файле .env как AI_TUNNEL=sk-aitunnel-xxx\naitunnel_token = \naitunnel_base_url = https://api.aitunnel.ru/v1/\naitunnel_model = gpt-4.1\n\n# Hugging Face API настройки\nhuggingface_token = \n\n# OpenAI API настройки\nopenai_token = \n\n# Ветка по умолчанию для git push\nbranch = master\n\n# Максимальный размер diff для отправки в AI API\nmax_diff_size = 7000" > "$CONFIG_PATH"
     echo -e "${GREEN}✓ Создан файл конфигурации $CONFIG_PATH${NC}"
     echo -e "${YELLOW}⚠️ Пожалуйста, отредактируйте файл конфигурации и добавьте ваш API токен${NC}"
     echo -e "${YELLOW}   Или создайте файл .env в корне проекта со строкой: AI_TUNNEL=sk-aitunnel-ваш_токен${NC}"
@@ -140,6 +140,13 @@ ENV_PATH="$SCRIPT_DIR/.env.example"
 if [ ! -f "$ENV_PATH" ]; then
     echo -e "# CommitPilot - Пример файла переменных окружения\n# Скопируйте этот файл в .env и добавьте ваш токен\n\n# AITUNNEL API токен (рекомендуется)\nAI_TUNNEL=sk-aitunnel-ваш_токен_здесь\n\n# Кастомный URL для AITUNNEL (опционально)\n# AITUNNEL_BASE_URL=https://api.aitunnel.ru/v1/\n\n# Модель для AITUNNEL (опционально)\n# AITUNNEL_MODEL=gpt-4.1" > "$ENV_PATH"
     echo -e "${GREEN}✓ Создан пример файла .env.example${NC}"
+fi
+
+# Создание примера config.ini файла
+CONFIG_EXAMPLE_PATH="$SCRIPT_DIR/config.ini.example"
+if [ ! -f "$CONFIG_EXAMPLE_PATH" ]; then
+    cp "$CONFIG_PATH" "$CONFIG_EXAMPLE_PATH"
+    echo -e "${GREEN}✓ Создан пример файла config.ini.example${NC}"
 fi
 
 # Установка Git hooks

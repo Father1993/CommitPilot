@@ -117,7 +117,7 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
             "aitunnel_model": "gpt-4.1",  # Модель по умолчанию для AITUNNEL
             "huggingface_token": "",
             "openai_token": "",
-            "branch": "main",
+            "branch": "master",
             "max_diff_size": "7000",
         }
 
