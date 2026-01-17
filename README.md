@@ -2,9 +2,21 @@
 
 Автоматизация git-коммитов с AI-генерацией сообщений в формате Conventional Commits.
 
+## Простое использование
+
+**После установки** (один раз) используйте в **любом проекте**:
+
+```bash
+cd /путь/к/вашему/проекту
+acommit              # Автоматически: git add + commit + push
+acommit-here         # Только коммит без push
+```
+
+Не нужно копировать файлы в каждый проект — команды работают глобально!
+
 ## Быстрый старт
 
-### Установка
+### Установка (один раз)
 
 ```bash
 git clone https://github.com/Father1993/CommitPilot.git
@@ -12,6 +24,8 @@ cd CommitPilot
 bash install.sh
 source ~/.bashrc  # или ~/.zshrc
 ```
+
+После установки команды `acommit` будут работать из **любой директории** с git-репозиторием.
 
 ### Настройка
 
@@ -75,6 +89,41 @@ acommit --get-message # Только генерация сообщения
 4. **Отправка**: `git push` в указанную ветку (опционально)
 
 **Формат сообщений**: Conventional Commits (`тип(область): описание`)
+
+## Способы использования
+
+### Способ 1: Глобальные алиасы (рекомендуется)
+
+**Установка один раз:**
+```bash
+cd CommitPilot
+bash install.sh
+source ~/.bashrc  # или ~/.zshrc
+```
+
+**Использование в любом проекте:**
+```bash
+cd /путь/к/вашему/проекту
+acommit              # Коммит + push
+acommit-here         # Только коммит
+acommit-dev          # Коммит в dev
+```
+
+### Способ 2: Локальное использование
+
+**В директории проекта:**
+```bash
+# Скопируйте CommitPilot в проект или используйте напрямую
+python /путь/к/CommitPilot/auto_commit.py
+python /путь/к/CommitPilot/auto_commit.py -c  # Только коммит
+python /путь/к/CommitPilot/auto_commit.py -b dev  # В ветку dev
+```
+
+**Или создайте локальный алиас в проекте:**
+```bash
+# В корне проекта создайте .bashrc или добавьте в ~/.bashrc
+alias acommit-local='python "$(pwd)/../CommitPilot/auto_commit.py"'
+```
 
 ## Примеры использования
 
