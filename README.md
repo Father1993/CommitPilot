@@ -38,13 +38,19 @@ AITUNNEL_BASE_URL=https://api.aitunnel.ru/v1/
 AITUNNEL_MODEL=gpt-4.1
 ```
 
-Или используйте `config.ini`:
+Или используйте `config.ini` (пример в `config.ini.example`):
 
 ```ini
 [DEFAULT]
 api_provider = aitunnel
 aitunnel_token = sk-aitunnel-ваш_токен_здесь
+aitunnel_base_url = https://api.aitunnel.ru/v1/
+aitunnel_model = gpt-4.1
+branch = master
+max_diff_size = 7000
 ```
+
+**Примечание**: `config.ini` хранится в директории CommitPilot и используется для всех проектов. Токены лучше хранить в `.env` файле каждого проекта.
 
 ### Использование
 

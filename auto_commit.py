@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Константы
 VERSION = "1.0.0"
-CONFIG_FILE = Path(".commits", "config.ini")
+CONFIG_FILE = Path(__file__).resolve().parent / "config.ini"
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 API_URL = (
     "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
@@ -117,8 +117,8 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
             "aitunnel_model": "gpt-4.1",  # Модель по умолчанию для AITUNNEL
             "huggingface_token": "",
             "openai_token": "",
-            "branch": "main",
-            "max_diff_size": "5000",
+            "branch": "master",
+            "max_diff_size": "7000",
         }
 
         os.makedirs(CONFIG_FILE.parent, exist_ok=True)
