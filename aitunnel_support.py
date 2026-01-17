@@ -63,18 +63,35 @@ def generate_commit_message_with_aitunnel(diff: str, status: str, config: config
         logger.debug(f"Размер diff превышает лимит. Обрезано до {max_size} символов.")
     
     # Формируем промпт для модели
-    prompt = f"""Analyze the git changes and create a brief but informative commit message.
+    prompt = f"""Проанализируй изменения в git и создай краткое, но информативное сообщение коммита в формате Conventional Commits.
 
-Git Status:
+Статус изменений:
 {status}
 
-Git Diff:
+Изменения (diff):
 {diff}
 
-Create a single-line commit message in format: type(scope): message
-Where type is one of: feat, fix, docs, style, refactor, test, chore
-Example: "feat(auth): add OAuth authentication"
-Write only the commit message, without additional text."""
+Требования к сообщению:
+1. Формат: type(scope): краткое описание
+2. Тип (type): feat, fix, docs, style, refactor, test, chore
+3. Область (scope): модуль/компонент, который изменился (опционально, но желательно)
+4. Описание: что именно изменилось и зачем (максимум 50 символов)
+
+Примеры хороших сообщений:
+- feat(auth): add OAuth2 authentication flow
+- fix(api): resolve timeout error in user endpoint
+- docs(readme): update installation instructions
+- refactor(core): optimize database query performance
+- style(ui): improve button spacing and colors
+
+Важно:
+- Будь конкретным: что изменилось, а не просто "update code"
+- Используй scope для группировки изменений
+- Пиши на английском языке
+- Избегай общих фраз типа "update", "fix", "change"
+- Указывай конкретную функциональность или проблему
+
+Верни только сообщение коммита, без дополнительных объяснений."""
     
     # Используем OpenAI SDK (AITUNNEL совместим с OpenAI API)
     if OPENAI_SDK_AVAILABLE:
@@ -88,11 +105,11 @@ Write only the commit message, without additional text."""
             completion = client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": "You are a helpful AI assistant that specializes in creating conventional commit messages."},
+                    {"role": "system", "content": "Ты эксперт по созданию качественных сообщений коммитов в формате Conventional Commits. Твои сообщения должны быть информативными, конкретными и понятными как для разработчиков, так и для AI-систем. Всегда используй формат type(scope): описание с конкретными деталями изменений."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=100,  # Достаточно для короткого сообщения коммита
-                temperature=0.3  # Снижена для более детерминированных результатов
+                max_tokens=100,
+                temperature=0.3
             )
             
             # Извлекаем сообщение из ответа
@@ -127,11 +144,11 @@ Write only the commit message, without additional text."""
         payload = {
             "model": model,
             "messages": [
-                {"role": "system", "content": "You are a helpful AI assistant that specializes in creating conventional commit messages."},
+                {"role": "system", "content": "Ты эксперт по созданию качественных сообщений коммитов в формате Conventional Commits. Твои сообщения должны быть информативными, конкретными и понятными как для разработчиков, так и для AI-систем. Всегда используй формат type(scope): описание с конкретными деталями изменений."},
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": 100,  # Достаточно для короткого сообщения коммита
-            "temperature": 0.3  # Снижена для более детерминированных результатов
+            "max_tokens": 100,
+            "temperature": 0.3
         }
         
         try:
