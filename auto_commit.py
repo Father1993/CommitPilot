@@ -44,7 +44,7 @@ API_URL = (
 _config_cache: Optional[configparser.ConfigParser] = None
 _config_file_mtime: Optional[float] = None
 
-# Множество префиксов для быстрого поиска (оптимизация парсинга)
+# Set of prefixes for fast search (parsing optimization)
 COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
 
 # Import AI provider support modules
@@ -71,7 +71,7 @@ except (ImportError, ModuleNotFoundError):
         from aitunnel_support import generate_commit_message_with_aitunnel
         AITUNNEL_SUPPORT = True
     except (ImportError, ModuleNotFoundError):
-        logger.debug("Модуль поддержки AITUNNEL не найден.")
+        logger.debug("AITUNNEL support module not found.")
 
 
 def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
@@ -293,16 +293,16 @@ def git_add_all() -> None:
 
 def git_commit(message: str) -> bool:
     """
-    Создает коммит с указанным сообщением
+    Create commit with specified message
 
     Args:
-        message: Текст сообщения для коммита
+        message: Commit message text
 
     Returns:
-        bool: True если коммит создан успешно, False в случае ошибки
+        bool: True if commit created successfully, False on error
 
     Raises:
-        SystemExit: При критической ошибке
+        SystemExit: On critical error
     """
     try:
         result = subprocess.run(
@@ -311,10 +311,10 @@ def git_commit(message: str) -> bool:
         if result.returncode == 0:
             return True
         else:
-            print(f"⚠️ Не удалось создать коммит: {result.stderr}")
+            print(f"⚠️ Failed to create commit: {result.stderr}")
             return False
     except Exception as e:
-        print(f"❌ Ошибка при создании коммита: {e}")
+        print(f"❌ Error creating commit: {e}")
         sys.exit(1)
 
 
@@ -365,7 +365,7 @@ def generate_message_only(config: configparser.ConfigParser) -> str:
         logger.warning("Empty diff, nothing to analyze")
         return DEFAULT_COMMIT_MESSAGE
 
-    # Выбираем провайдера AI
+    # Select AI provider
     provider = config["DEFAULT"].get("api_provider", "aitunnel")
     logger.debug(f"Using AI provider: {provider}")
 
@@ -376,11 +376,11 @@ def generate_message_only(config: configparser.ConfigParser) -> str:
     else:
         if provider.lower() == "aitunnel" and not AITUNNEL_SUPPORT:
             logger.warning(
-                "AITUNNEL API выбран, но модуль не установлен. Используется Hugging Face."
+                "AITUNNEL API selected but module not installed. Using Hugging Face."
             )
         elif provider.lower() == "openai" and not OPENAI_SUPPORT:
             logger.warning(
-                "OpenAI API выбран, но модуль не установлен. Используется Hugging Face."
+                "OpenAI API selected but module not installed. Using Hugging Face."
             )
         return generate_commit_message_with_huggingface(diff, status, config)
 

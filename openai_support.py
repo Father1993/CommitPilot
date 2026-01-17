@@ -14,7 +14,7 @@ import logging
 import configparser
 from typing import Dict, Any
 
-# Импортируем OpenAI SDK
+# Import OpenAI SDK
 try:
     from openai import OpenAI
     OPENAI_SDK_AVAILABLE = True
@@ -25,7 +25,7 @@ except ImportError:
 # Configure logger
 logger = logging.getLogger(__name__)
 
-# Константы
+# Constants
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 
 # Set of prefixes for fast search (parsing optimization)
@@ -33,26 +33,26 @@ COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test",
 
 def generate_commit_message_with_openai(diff: str, status: str, config: configparser.ConfigParser) -> str:
     """
-    Генерирует сообщение коммита с помощью OpenAI API
+    Generate commit message using OpenAI API
     
     Args:
-        diff: Текст изменений (git diff)
-        status: Статус репозитория (git status)
-        config: Конфигурация с настройками и API ключами
+        diff: Changes text (git diff)
+        status: Repository status (git status)
+        config: Configuration with settings and API keys
         
     Returns:
-        str: Сгенерированное сообщение для коммита
+        str: Generated commit message
     """
     token = config['DEFAULT'].get('openai_token', '')
     if not token:
-        logger.error("❌ OpenAI API токен не настроен. Обновите файл конфигурации.")
+        logger.error("❌ OpenAI API token not configured. Update config file.")
         return DEFAULT_COMMIT_MESSAGE
     
-    # Ограничиваем размер diff для API запроса
+    # Limit diff size for API request
     max_size = int(config['DEFAULT'].get('max_diff_size', '5000'))
     if len(diff) > max_size:
         diff = diff[:max_size] + "\n... (truncated)"
-        logger.debug(f"Размер diff превышает лимит. Обрезано до {max_size} символов.")
+        logger.debug(f"Diff size exceeds limit. Truncated to {max_size} characters.")
     
     # Form prompt for the model
     prompt = f"""Analyze the git changes and create a brief but informative commit message in Conventional Commits format.
@@ -85,10 +85,10 @@ Important:
 
 Return only the commit message, without additional explanations."""
     
-    # Используем новый SDK если доступен
+    # Use new SDK if available
     if OPENAI_SDK_AVAILABLE:
         try:
-            logger.debug("Используется новый OpenAI SDK...")
+            logger.debug("Using new OpenAI SDK...")
             client = OpenAI(api_key=token)
             
             completion = client.chat.completions.create(
@@ -101,29 +101,29 @@ Return only the commit message, without additional explanations."""
                 temperature=0.3
             )
             
-            # Извлекаем сообщение из ответа
+            # Extract message from response
             message = completion.choices[0].message.content.strip()
             
-            # Обрабатываем ответ для получения только строки коммита (оптимизировано)
+            # Process response to get only commit line (optimized)
             lines = message.split('\n')
             for line in lines:
                 line_stripped = line.strip()
                 if any(line_stripped.startswith(prefix) for prefix in COMMIT_PREFIXES):
                     return line_stripped
             
-            # Если не нашли формат, возвращаем первую непустую строку
+            # If format not found, return first non-empty line
             for line in lines:
                 line_stripped = line.strip()
                 if line_stripped and not line_stripped.startswith('```'):
                     return line_stripped
                     
-            logger.debug(f"Не удалось найти формат в сообщении: {message}")
+            logger.debug(f"Failed to find format in message: {message}")
             return message
         except Exception as e:
-            logger.error(f"❌ Ошибка при использовании OpenAI SDK: {e}")
+            logger.error(f"❌ Error using OpenAI SDK: {e}")
             return DEFAULT_COMMIT_MESSAGE
     else:
-        # Запасной вариант - старый метод через HTTP запрос
+        # Fallback - old method via HTTP request
         API_URL = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {token}",
@@ -133,7 +133,7 @@ Return only the commit message, without additional explanations."""
         payload = {
             "model": "gpt-3.5-turbo",
             "messages": [
-                {"role": "system", "content": "Ты эксперт по созданию качественных сообщений коммитов в формате Conventional Commits. Твои сообщения должны быть информативными, конкретными и понятными как для разработчиков, так и для AI-систем. Всегда используй формат type(scope): описание с конкретными деталями изменений."},
+                {"role": "system", "content": "You are an expert at creating high-quality commit messages in Conventional Commits format. Your messages must be informative, specific, and understandable for both developers and AI systems. Always use the format type(scope): description with specific details of changes."},
                 {"role": "user", "content": prompt}
             ],
             "max_tokens": 100,
@@ -141,35 +141,35 @@ Return only the commit message, without additional explanations."""
         }
         
         try:
-            logger.debug("Отправка запроса к OpenAI API (HTTP)...")
+            logger.debug("Sending request to OpenAI API (HTTP)...")
             response = requests.post(API_URL, headers=headers, json=payload, timeout=10)
             response.raise_for_status()
             result = response.json()
             
-            # Извлекаем сообщение из ответа
+            # Extract message from response
             message = result["choices"][0]["message"]["content"].strip()
             
-            # Обрабатываем ответ для получения только строки коммита (оптимизировано)
+            # Process response to get only commit line (optimized)
             lines = message.split('\n')
             for line in lines:
                 line_stripped = line.strip()
                 if any(line_stripped.startswith(prefix) for prefix in COMMIT_PREFIXES):
                     return line_stripped
             
-            # Если не нашли формат, возвращаем первую непустую строку
+            # If format not found, return first non-empty line
             for line in lines:
                 line_stripped = line.strip()
                 if line_stripped and not line_stripped.startswith('```'):
                     return line_stripped
                     
-            logger.debug(f"Не удалось найти формат в сообщении: {message}")
+            logger.debug(f"Failed to find format in message: {message}")
             return message
         except requests.exceptions.Timeout:
-            logger.error("⏱️ Превышено время ожидания запроса к OpenAI API")
+            logger.error("⏱️ Request timeout to OpenAI API")
             return DEFAULT_COMMIT_MESSAGE
         except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Ошибка сети при запросе к OpenAI API: {e}")
+            logger.error(f"❌ Network error requesting OpenAI API: {e}")
             return DEFAULT_COMMIT_MESSAGE
         except Exception as e:
-            logger.error(f"❌ Ошибка при запросе к OpenAI API: {e}")
+            logger.error(f"❌ Error requesting OpenAI API: {e}")
             return DEFAULT_COMMIT_MESSAGE 
