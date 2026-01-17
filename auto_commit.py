@@ -17,10 +17,19 @@ import requests
 from pathlib import Path
 import configparser
 import logging
+from functools import lru_cache
 from typing import Dict, Optional, Any, Tuple
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+# Попытка загрузить переменные из .env файла
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+
+# Настройка логирования (только ошибки и предупреждения)
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 # Константы
@@ -31,36 +40,81 @@ API_URL = (
     "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
 )
 
-# Импортируем модуль поддержки OpenAI, если он доступен
+# Кэш для конфигурации (обновляется при изменении файла)
+_config_cache: Optional[configparser.ConfigParser] = None
+_config_file_mtime: Optional[float] = None
+
+# Множество префиксов для быстрого поиска (оптимизация парсинга)
+COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
+
+# Импортируем модули поддержки AI провайдеров
+OPENAI_SUPPORT = False
+AITUNNEL_SUPPORT = False
+
 try:
     from .openai_support import generate_commit_message_with_openai
-
     OPENAI_SUPPORT = True
 except (ImportError, ModuleNotFoundError):
     try:
-        # Пробуем импортировать из текущей директории
         sys.path.append(str(Path(__file__).parent))
         from openai_support import generate_commit_message_with_openai
-
         OPENAI_SUPPORT = True
     except (ImportError, ModuleNotFoundError):
-        OPENAI_SUPPORT = False
-        logger.debug(
-            "Модуль поддержки OpenAI не найден. Будет использоваться только Hugging Face API."
-        )
+        logger.debug("Модуль поддержки OpenAI не найден.")
+
+try:
+    from .aitunnel_support import generate_commit_message_with_aitunnel
+    AITUNNEL_SUPPORT = True
+except (ImportError, ModuleNotFoundError):
+    try:
+        sys.path.append(str(Path(__file__).parent))
+        from aitunnel_support import generate_commit_message_with_aitunnel
+        AITUNNEL_SUPPORT = True
+    except (ImportError, ModuleNotFoundError):
+        logger.debug("Модуль поддержки AITUNNEL не найден.")
 
 
-def setup_config() -> configparser.ConfigParser:
+def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
     """
     Создает конфигурационный файл, если он не существует, или читает существующий
+    Также загружает переменные из .env файла, если он доступен
+    Использует кэширование для оптимизации производительности
+
+    Args:
+        force_reload: Принудительно перезагрузить конфигурацию из файла
 
     Returns:
         ConfigParser: Объект с настройками приложения
     """
+    global _config_cache, _config_file_mtime
+    
+    # Загружаем переменные из .env файла (только один раз)
+    if DOTENV_AVAILABLE and not hasattr(setup_config, '_env_loaded'):
+        load_dotenv()
+        setup_config._env_loaded = True
+    
+    # Проверяем кэш
+    if not force_reload and _config_cache is not None:
+        if CONFIG_FILE.exists():
+            try:
+                current_mtime = CONFIG_FILE.stat().st_mtime
+                if current_mtime == _config_file_mtime:
+                    return _config_cache
+            except OSError:
+                # Если файл был удален, сбрасываем кэш
+                _config_cache = None
+                _config_file_mtime = None
+        elif _config_file_mtime is None:
+            # Файл не существует и кэш пустой - возвращаем кэш
+            return _config_cache
+    
     if not CONFIG_FILE.exists():
         config = configparser.ConfigParser()
         config["DEFAULT"] = {
-            "api_provider": "huggingface",
+            "api_provider": "aitunnel",
+            "aitunnel_token": "",
+            "aitunnel_base_url": "https://api.aitunnel.ru/v1/",
+            "aitunnel_model": "gpt-4.1",  # Модель по умолчанию для AITUNNEL
             "huggingface_token": "",
             "openai_token": "",
             "branch": "main",
@@ -71,14 +125,35 @@ def setup_config() -> configparser.ConfigParser:
         with open(CONFIG_FILE, "w") as configfile:
             config.write(configfile)
 
-        logger.info(f"✅ Создан конфигурационный файл {CONFIG_FILE}")
-        logger.warning(
-            "⚠️ Пожалуйста, добавьте API токен для выбранного провайдера в файл конфигурации"
-        )
-        return config
-
+        print(f"✅ Создан конфигурационный файл {CONFIG_FILE}")
+        print("⚠️ Добавьте API токен в файл конфигурации или .env")
+    
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE)
+    
+    # Переопределяем значения из .env файла, если они есть
+    env_token = os.getenv("AI_TUNNEL")
+    if env_token:
+        config["DEFAULT"]["aitunnel_token"] = env_token
+        logger.debug("Загружен AITUNNEL токен из переменной окружения AI_TUNNEL")
+
+    env_base_url = os.getenv("AITUNNEL_BASE_URL")
+    if env_base_url:
+        config["DEFAULT"]["aitunnel_base_url"] = env_base_url
+        logger.debug("Загружен AITUNNEL base_url из переменной окружения AITUNNEL_BASE_URL")
+
+    env_model = os.getenv("AITUNNEL_MODEL")
+    if env_model:
+        config["DEFAULT"]["aitunnel_model"] = env_model
+        logger.debug("Загружена AITUNNEL модель из переменной окружения AITUNNEL_MODEL")
+    
+    # Обновляем кэш
+    _config_cache = config
+    try:
+        _config_file_mtime = CONFIG_FILE.stat().st_mtime if CONFIG_FILE.exists() else None
+    except OSError:
+        _config_file_mtime = None
+    
     return config
 
 
@@ -216,22 +291,11 @@ Format your response as just the commit message text without explanations.
             # Очищаем от возможных маркеров
             message = message.replace("</s>", "").strip()
 
-            # Ищем строки в формате Conventional Commits
+            # Ищем строки в формате Conventional Commits (оптимизировано с использованием множества)
             lines = message.split("\n")
             for line in lines:
                 line = line.strip()
-                if line and any(
-                    line.startswith(prefix)
-                    for prefix in [
-                        "feat",
-                        "fix",
-                        "docs",
-                        "style",
-                        "refactor",
-                        "test",
-                        "chore",
-                    ]
-                ):
+                if line and any(line.startswith(prefix) for prefix in COMMIT_PREFIXES):
                     return line
 
             # Если не нашли формат, возвращаем первую непустую строку
@@ -260,10 +324,10 @@ def git_add_all() -> None:
         SystemExit: При ошибке выполнения git команды
     """
     try:
-        subprocess.run(["git", "add", "."], check=True)
-        logger.info("✅ Добавлены все изменения в индекс")
+        subprocess.run(["git", "add", "."], check=True, capture_output=True)
+        print("✅ Добавлены изменения в индекс")
     except Exception as e:
-        logger.error(f"❌ Ошибка при добавлении изменений: {e}")
+        print(f"❌ Ошибка при добавлении изменений: {e}")
         sys.exit(1)
 
 
@@ -285,13 +349,13 @@ def git_commit(message: str) -> bool:
             ["git", "commit", "-m", message], capture_output=True, encoding="utf-8"
         )
         if result.returncode == 0:
-            logger.info(f'✅ Создан коммит с сообщением: "{message}"')
+            print("✅ Коммит создан")
             return True
         else:
-            logger.warning(f"⚠️ Не удалось создать коммит: {result.stderr}")
+            print(f"⚠️ Не удалось создать коммит: {result.stderr}")
             return False
     except Exception as e:
-        logger.error(f"❌ Ошибка при создании коммита: {e}")
+        print(f"❌ Ошибка при создании коммита: {e}")
         sys.exit(1)
 
 
@@ -313,13 +377,13 @@ def git_push(branch: str) -> bool:
             ["git", "push", "origin", branch], capture_output=True, encoding="utf-8"
         )
         if result.returncode == 0:
-            logger.info(f"✅ Изменения отправлены в ветку {branch}")
+            print(f"✅ Изменения отправлены в ветку {branch}")
             return True
         else:
-            logger.warning(f"⚠️ Не удалось отправить изменения: {result.stderr}")
+            print(f"⚠️ Не удалось отправить изменения: {result.stderr}")
             return False
     except Exception as e:
-        logger.error(f"❌ Ошибка при отправке изменений: {e}")
+        print(f"❌ Ошибка при отправке изменений: {e}")
         sys.exit(1)
 
 
@@ -344,13 +408,19 @@ def generate_message_only(config: configparser.ConfigParser) -> str:
         return DEFAULT_COMMIT_MESSAGE
 
     # Выбираем провайдера AI
-    provider = config["DEFAULT"].get("api_provider", "huggingface")
+    provider = config["DEFAULT"].get("api_provider", "aitunnel")
     logger.debug(f"Используется провайдер AI: {provider}")
 
-    if provider.lower() == "openai" and OPENAI_SUPPORT:
+    if provider.lower() == "aitunnel" and AITUNNEL_SUPPORT:
+        return generate_commit_message_with_aitunnel(diff, status, config)
+    elif provider.lower() == "openai" and OPENAI_SUPPORT:
         return generate_commit_message_with_openai(diff, status, config)
     else:
-        if provider.lower() == "openai" and not OPENAI_SUPPORT:
+        if provider.lower() == "aitunnel" and not AITUNNEL_SUPPORT:
+            logger.warning(
+                "AITUNNEL API выбран, но модуль не установлен. Используется Hugging Face."
+            )
+        elif provider.lower() == "openai" and not OPENAI_SUPPORT:
             logger.warning(
                 "OpenAI API выбран, но модуль не установлен. Используется Hugging Face."
             )
@@ -375,8 +445,8 @@ def main():
     parser.add_argument(
         "-p",
         "--provider",
-        choices=["huggingface", "openai"],
-        help="Провайдер AI (huggingface или openai)",
+        choices=["huggingface", "openai", "aitunnel"],
+        help="Провайдер AI (huggingface, openai или aitunnel)",
     )
     parser.add_argument("--setup", action="store_true", help="Настройка конфигурации")
     parser.add_argument(
@@ -415,17 +485,26 @@ def main():
     # Тестирование системы
     if args.test:
         print("🧪 Проверка настроек CommitPilot...")
-        if config["DEFAULT"]["api_provider"] == "huggingface":
-            if config["DEFAULT"]["huggingface_token"]:
+        provider = config["DEFAULT"].get("api_provider", "aitunnel")
+        
+        if provider == "aitunnel":
+            token = config["DEFAULT"].get("aitunnel_token", "") or os.getenv("AI_TUNNEL", "")
+            if token:
+                print("✅ AITUNNEL API токен настроен")
+            else:
+                print("❌ AITUNNEL API токен не настроен (проверьте config.ini или .env файл)")
+        elif provider == "huggingface":
+            if config["DEFAULT"].get("huggingface_token", ""):
                 print("✅ Hugging Face API токен настроен")
             else:
                 print("❌ Hugging Face API токен не настроен")
-        elif config["DEFAULT"]["api_provider"] == "openai":
-            if config["DEFAULT"]["openai_token"]:
+        elif provider == "openai":
+            if config["DEFAULT"].get("openai_token", ""):
                 print("✅ OpenAI API токен настроен")
             else:
                 print("❌ OpenAI API токен не настроен")
 
+        print(f"✅ Провайдер: {provider}")
         print(f"✅ Ветка по умолчанию: {config['DEFAULT']['branch']}")
 
         # Тестируем генерацию сообщения
@@ -480,6 +559,11 @@ def main():
         print(
             f"📝 Пожалуйста, отредактируйте файл {CONFIG_FILE} вручную и добавьте ваш API токен"
         )
+        print("   Или создайте файл .env в корне проекта со строкой:")
+        print("   AI_TUNNEL=sk-aitunnel-ваш_токен")
+        print(
+            "   Для получения токена AITUNNEL: https://aitunnel.ru/"
+        )
         print(
             "   Для получения токена Hugging Face: https://huggingface.co/settings/tokens"
         )
@@ -499,29 +583,33 @@ def main():
         # Проверяем работу системы
         print("\n🧪 Проверка работы CommitPilot...")
         try:
-            # Проверяем валидность токена
-            if (
-                config["DEFAULT"]["api_provider"] == "huggingface"
-                and config["DEFAULT"]["huggingface_token"]
-            ):
-                print("✅ Hugging Face API токен настроен")
-                test_message = generate_message_only(config)
-                if test_message and test_message != DEFAULT_COMMIT_MESSAGE:
-                    print(f'✅ Пример сгенерированного сообщения: "{test_message}"')
-                else:
-                    print("⚠️ Не удалось сгенерировать тестовое сообщение")
-            elif (
-                config["DEFAULT"]["api_provider"] == "openai"
-                and config["DEFAULT"]["openai_token"]
-            ):
-                print("✅ OpenAI API токен настроен")
+            provider = config["DEFAULT"].get("api_provider", "aitunnel")
+            token_configured = False
+            
+            if provider == "aitunnel":
+                token = config["DEFAULT"].get("aitunnel_token", "") or os.getenv("AI_TUNNEL", "")
+                if token:
+                    print("✅ AITUNNEL API токен настроен")
+                    token_configured = True
+            elif provider == "huggingface":
+                token = config["DEFAULT"].get("huggingface_token", "")
+                if token:
+                    print("✅ Hugging Face API токен настроен")
+                    token_configured = True
+            elif provider == "openai":
+                token = config["DEFAULT"].get("openai_token", "")
+                if token:
+                    print("✅ OpenAI API токен настроен")
+                    token_configured = True
+            
+            if token_configured:
                 test_message = generate_message_only(config)
                 if test_message and test_message != DEFAULT_COMMIT_MESSAGE:
                     print(f'✅ Пример сгенерированного сообщения: "{test_message}"')
                 else:
                     print("⚠️ Не удалось сгенерировать тестовое сообщение")
             else:
-                print("⚠️ API токен не настроен. Пожалуйста, добавьте его в config.ini")
+                print("⚠️ API токен не настроен. Пожалуйста, добавьте его в config.ini или .env")
         except Exception as e:
             print(f"⚠️ Ошибка при проверке: {e}")
 
@@ -544,20 +632,26 @@ def main():
     if args.message:
         commit_message = args.message
     else:
-        print("🤖 Генерация сообщения коммита с помощью AI...")
+        print("🤖 Генерация сообщения...")
 
         # Выбираем провайдера AI
-        provider = args.provider or config["DEFAULT"].get("api_provider", "huggingface")
+        provider = args.provider or config["DEFAULT"].get("api_provider", "aitunnel")
 
-        if provider.lower() == "openai" and OPENAI_SUPPORT:
+        if provider.lower() == "aitunnel" and AITUNNEL_SUPPORT:
+            commit_message = generate_commit_message_with_aitunnel(diff, status, config)
+        elif provider.lower() == "openai" and OPENAI_SUPPORT:
             commit_message = generate_commit_message_with_openai(diff, status, config)
         else:
+            if provider.lower() == "aitunnel" and not AITUNNEL_SUPPORT:
+                logger.warning("AITUNNEL API выбран, но модуль не установлен. Используется Hugging Face.")
+            elif provider.lower() == "openai" and not OPENAI_SUPPORT:
+                logger.warning("OpenAI API выбран, но модуль не установлен. Используется Hugging Face.")
             commit_message = generate_commit_message_with_huggingface(
                 diff, status, config
             )
 
-    # Выводим сгенерированное сообщение перед созданием коммита
-    print(f'📝 Сообщение коммита: "{commit_message}"')
+    # Выводим сгенерированное сообщение
+    print(f'📝 {commit_message}')
 
     # Создаем коммит
     git_commit(commit_message)
@@ -565,9 +659,6 @@ def main():
     # Отправляем изменения, если не указан флаг --commit-only
     if not args.commit_only:
         branch = args.branch or config["DEFAULT"]["branch"]
-        print(
-            f'🚀 Отправка изменений в ветку {branch} с сообщением: "{commit_message}"...'
-        )
         git_push(branch)
 
 
