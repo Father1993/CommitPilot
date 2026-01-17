@@ -19,6 +19,9 @@ source ~/.bashrc  # или ~/.zshrc
 
 ```env
 AI_TUNNEL=sk-aitunnel-ваш_токен_здесь
+# Опционально: кастомный API эндпоинт и модель
+AITUNNEL_BASE_URL=https://api.aitunnel.ru/v1/
+AITUNNEL_MODEL=gpt-4.1
 ```
 
 Или используйте `config.ini`:
@@ -31,12 +34,22 @@ aitunnel_token = sk-aitunnel-ваш_токен_здесь
 
 ### Использование
 
+**Основные команды:**
 ```bash
-acommit              # Коммит с AI-сообщением и push
+acommit              # Коммит с AI-сообщением и push в ветку по умолчанию
 acommit-here         # Только коммит без push
-acommit -b dev       # Коммит в ветку dev
-acommit -m "msg"     # Свое сообщение
+acommit-dev          # Коммит и push в ветку dev
+acommit-main         # Коммит и push в ветку main
+acommit-master       # Коммит и push в ветку master
+```
+
+**Дополнительные опции:**
+```bash
+acommit -b branch    # Коммит в указанную ветку
+acommit -m "msg"     # Свое сообщение (отключает AI)
 acommit -p openai    # Выбор провайдера (aitunnel/openai/huggingface)
+acommit --test       # Проверка настроек
+acommit --get-message # Только генерация сообщения
 ```
 
 ## Особенности
@@ -56,30 +69,52 @@ acommit -p openai    # Выбор провайдера (aitunnel/openai/huggingf
 
 ## Как это работает
 
-1. Анализ изменений через `git diff`
-2. Отправка в AI API для генерации сообщения
-3. Создание коммита с сгенерированным сообщением
-4. Отправка в удаленный репозиторий (опционально)
+1. **Анализ изменений**: Получение `git diff` и `git status`
+2. **Генерация сообщения**: Отправка в AITUNNEL API (совместим с OpenAI)
+3. **Создание коммита**: `git add .` и `git commit` с AI-сообщением
+4. **Отправка**: `git push` в указанную ветку (опционально)
 
-## Использование в других проектах
+**Формат сообщений**: Conventional Commits (`тип(область): описание`)
 
-**Глобальные алиасы** (работают из любой директории):
+## Примеры использования
+
+**Локальный коммит:**
 ```bash
-cd /путь/к/проекту
-acommit
+acommit-here  # Коммит без push
 ```
 
-**Git hook** (автогенерация при `git commit`):
+**Работа с ветками:**
 ```bash
-cp /путь/к/CommitPilot/prepare-commit-msg /путь/к/проекту/.git/hooks/
+acommit-dev   # Коммит в dev
+acommit -b feature/new-feature  # В любую ветку
+```
+
+**Git hooks** (автогенерация при `git commit`):
+```bash
+cp prepare-commit-msg /путь/к/проекту/.git/hooks/
 chmod +x /путь/к/проекту/.git/hooks/prepare-commit-msg
 ```
 
-## Тестирование
+**Примеры сообщений:**
+- `feat(auth): add OAuth authentication`
+- `fix(api): resolve timeout issue`
+- `docs: update installation guide`
+- `refactor(core): optimize diff processing`
 
+## Устранение проблем
+
+**Проверка настроек:**
 ```bash
-pip install pytest pytest-mock python-dotenv openai
-pytest tests/ -v
+acommit --test
+```
+
+**Ошибка "API токен не настроен":**
+- Проверьте `.env` файл с `AI_TUNNEL=sk-aitunnel-...`
+- Или настройте `aitunnel_token` в `config.ini`
+
+**Алиасы не работают:**
+```bash
+source ~/.bashrc  # или ~/.zshrc
 ```
 
 ## Безопасность
@@ -107,13 +142,7 @@ CommitPilot/
 
 | Провайдер | Модель | Токен |
 |-----------|--------|-------|
-| **AITUNNEL** (по умолчанию) | mistral-nemo | `AI_TUNNEL` в `.env` |
+| **AITUNNEL** (по умолчанию) | gpt-4.1 | `AI_TUNNEL` в `.env` |
 | OpenAI | gpt-4o-mini | `openai_token` в config.ini |
 | Hugging Face | Mixtral-8x7B | `huggingface_token` в config.ini |
 
-## Примеры сообщений
-
-- `feat(auth): add OAuth authentication`
-- `fix(api): resolve timeout issue`
-- `docs: update installation guide`
-- `refactor(core): optimize diff processing`

@@ -53,7 +53,7 @@ def generate_commit_message_with_aitunnel(diff: str, status: str, config: config
     base_url = config['DEFAULT'].get('aitunnel_base_url', AITUNNEL_BASE_URL)
     
     # Получаем модель из конфигурации или используем по умолчанию (оптимальная модель)
-    model = config['DEFAULT'].get('aitunnel_model', 'mistral-nemo')
+    model = config['DEFAULT'].get('aitunnel_model', 'gpt-4.1')
     
     # Ограничиваем размер diff для API запроса
     max_size = int(config['DEFAULT'].get('max_diff_size', '5000'))

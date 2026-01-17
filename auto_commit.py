@@ -114,7 +114,7 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
             "api_provider": "aitunnel",
             "aitunnel_token": "",
             "aitunnel_base_url": "https://api.aitunnel.ru/v1/",
-            "aitunnel_model": "mistral-nemo",  # Оптимальная модель: быстрая и дешевая (3.84₽/1M ввод, 7.68₽/1M вывод)
+            "aitunnel_model": "gpt-4.1",  # Модель по умолчанию для AITUNNEL
             "huggingface_token": "",
             "openai_token": "",
             "branch": "main",
@@ -138,6 +138,16 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
     if env_token:
         config["DEFAULT"]["aitunnel_token"] = env_token
         logger.debug("Загружен AITUNNEL токен из переменной окружения AI_TUNNEL")
+
+    env_base_url = os.getenv("AITUNNEL_BASE_URL")
+    if env_base_url:
+        config["DEFAULT"]["aitunnel_base_url"] = env_base_url
+        logger.debug("Загружен AITUNNEL base_url из переменной окружения AITUNNEL_BASE_URL")
+
+    env_model = os.getenv("AITUNNEL_MODEL")
+    if env_model:
+        config["DEFAULT"]["aitunnel_model"] = env_model
+        logger.debug("Загружена AITUNNEL модель из переменной окружения AITUNNEL_MODEL")
     
     # Обновляем кэш
     _config_cache = config
