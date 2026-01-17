@@ -1,13 +1,13 @@
-# Игнорируем IDE и редакторы
+# Ignore IDE and editors
 /.cursor
 /.vscode
 /.idea
 /.vs
 
-# Игнорируем файлы конфигурации с секретами
+# Ignore configuration files with secrets
 .env
 
-# Игнорируем Python-артефакты
+# Ignore Python artifacts
 __pycache__/
 *.py[cod]
 *$py.class
@@ -29,7 +29,7 @@ var/
 .installed.cfg
 *.egg
 
-# Игнорируем файлы тестов
+# Ignore test files
 .pytest_cache/
 .coverage
 htmlcov/

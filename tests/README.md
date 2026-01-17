@@ -1,39 +1,53 @@
-# Тестирование CommitPilot
+# CommitPilot Testing
 
-## Быстрый старт
+## Quick Start
 
 ```bash
 pip install pytest pytest-mock python-dotenv openai
 pytest tests/ -v
 ```
 
-## Структура тестов
+## Test Structure
 
-- `test_auto_commit.py` - тесты основного модуля
-- `__init__.py` - инициализация пакета тестов
+- `test_auto_commit.py` - Tests for main module
+- `__init__.py` - Test package initialization
 
-## Запуск тестов
+## Running Tests
 
 ```bash
-# Все тесты
+# All tests
 pytest tests/
 
-# С подробным выводом
+# With verbose output
 pytest tests/ -v
 
-# Конкретный тест
+# Specific test
 pytest tests/test_auto_commit.py::test_get_git_diff
-```
 
-## Покрытие кода
-
-```bash
-pip install pytest-cov
+# With coverage
 pytest --cov=. --cov-report=term tests/
 ```
 
-## Рекомендации
+## Test Coverage
 
-- Используйте моки для внешних зависимостей
-- Тестируйте успешные сценарии и обработку ошибок
-- Документируйте тестовые функции
+```bash
+pip install pytest-cov
+pytest --cov=. --cov-report=html tests/
+# Open htmlcov/index.html in browser
+```
+
+## Guidelines
+
+- Use mocks for external dependencies (API calls, git commands)
+- Test both success and error scenarios
+- Document test functions with docstrings
+- Keep tests simple and focused on one thing
+- Use fixtures for common setup
+
+## Current Test Coverage
+
+- Configuration setup and caching
+- Git operations (diff, status, add, commit, push)
+- Message generation (with fallbacks)
+- Environment variable handling
+- Error handling

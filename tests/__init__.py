@@ -1,3 +1,3 @@
 """
-Пакет с тестами для проекта CommitPilot.
+Test package for CommitPilot project.
 """

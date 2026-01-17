@@ -1,58 +1,58 @@
 #!/bin/sh
 #
-# Git hook для автоматической генерации сообщения коммита
-# Установка: cp prepare-commit-msg /путь/к/вашему/проекту/.git/hooks/
+# Git hook for automatic commit message generation
+# Installation: cp prepare-commit-msg /path/to/your/project/.git/hooks/
 #
 
-# Определяем путь к скрипту - есть два варианта:
-# 1. В текущем репозитории CommitPilot
-# 2. В другом репозитории, где установлен hook
+# Determine script path - there are two options:
+# 1. In current CommitPilot repository
+# 2. In another repository where hook is installed
 if [ -f "$(dirname "$0")/../auto_commit.py" ]; then
-    # Для CommitPilot репозитория
+    # For CommitPilot repository
     SCRIPT_PATH="$(dirname "$0")/../auto_commit.py"
 elif [ -f "$(dirname "$0")/../../CommitPilot/auto_commit.py" ]; then
-    # Для случая, когда CommitPilot установлен рядом с проектом
+    # For case when CommitPilot is installed next to project
     SCRIPT_PATH="$(dirname "$0")/../../CommitPilot/auto_commit.py"
 else
-    # Проверяем путь на основе переменных окружения
+    # Check path based on environment variables
     if [ -n "$COMMITPILOT_PATH" ]; then
         SCRIPT_PATH="$COMMITPILOT_PATH/auto_commit.py"
     else
-        echo "⚠️ Не удалось найти скрипт auto_commit.py. Задайте переменную COMMITPILOT_PATH."
+        echo "⚠️ Failed to find auto_commit.py script. Set COMMITPILOT_PATH variable."
         exit 0
     fi
 fi
 
-# Проверяем, существует ли скрипт
+# Check if script exists
 if [ ! -f "$SCRIPT_PATH" ]; then
-    echo "⚠️ Скрипт auto_commit.py не найден по пути: $SCRIPT_PATH"
+    echo "⚠️ Script auto_commit.py not found at path: $SCRIPT_PATH"
     exit 0
 fi
 
-# Определяем команду Python
+# Determine Python command
 if command -v python3 &> /dev/null; then
     PYTHON_CMD="python3"
 else
     PYTHON_CMD="python"
 fi
 
-# Проверяем, есть ли уже сообщение коммита
+# Check if commit message already exists
 if [ -z "$(cat "$1" | grep -v "^#")" ]; then
-    # Получаем diff изменений
+    # Get diff of changes
     DIFF=$(git diff --cached)
     STATUS=$(git status --porcelain)
     
-    # Если есть изменения, генерируем сообщение
+    # If there are changes, generate message
     if [ -n "$DIFF" ] || [ -n "$STATUS" ]; then
-        echo "🤖 Генерация сообщения коммита с помощью AI..."
+        echo "🤖 Generating commit message with AI..."
         
-        # Запускаем скрипт для генерации сообщения
+        # Run script to generate message
         COMMIT_MSG=$($PYTHON_CMD "$SCRIPT_PATH" --get-message 2>/dev/null)
         
-        # Записываем сообщение в файл
+        # Write message to file
         if [ -n "$COMMIT_MSG" ]; then
             echo "$COMMIT_MSG" > "$1"
-            echo "✅ Сгенерировано сообщение коммита: $COMMIT_MSG"
+            echo "✅ Generated commit message: $COMMIT_MSG"
         fi
     fi
 fi
