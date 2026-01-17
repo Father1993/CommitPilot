@@ -14,7 +14,7 @@ import logging
 import configparser
 from typing import Dict, Any
 
-# Импортируем OpenAI SDK (AITUNNEL совместим с OpenAI API)
+# Import OpenAI SDK (AITUNNEL is compatible with OpenAI API)
 try:
     from openai import OpenAI
     OPENAI_SDK_AVAILABLE = True
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 AITUNNEL_BASE_URL = "https://api.aitunnel.ru/v1/"
 
-# Множество префиксов для быстрого поиска (оптимизация парсинга)
+# Set of prefixes for fast search (parsing optimization)
 COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
 
 def generate_commit_message_with_aitunnel(diff: str, status: str, config: configparser.ConfigParser) -> str:
@@ -62,8 +62,8 @@ def generate_commit_message_with_aitunnel(diff: str, status: str, config: config
         diff = diff[:max_size] + "\n... (truncated)"
         logger.debug(f"Размер diff превышает лимит. Обрезано до {max_size} символов.")
     
-    # Формируем промпт для модели
-    prompt = f"""Analyze the git changes and create a brief but informative commit message.
+    # Form prompt for the model
+    prompt = f"""Analyze the git changes and create a brief but informative commit message in Conventional Commits format.
 
 Git Status:
 {status}
@@ -71,10 +71,27 @@ Git Status:
 Git Diff:
 {diff}
 
-Create a single-line commit message in format: type(scope): message
-Where type is one of: feat, fix, docs, style, refactor, test, chore
-Example: "feat(auth): add OAuth authentication"
-Write only the commit message, without additional text."""
+Message Requirements:
+1. Format: type(scope): brief description
+2. Type: feat, fix, docs, style, refactor, test, chore
+3. Scope: module/component that changed (optional but recommended)
+4. Description: what exactly changed and why (max 50 characters)
+
+Good Examples:
+- feat(auth): add OAuth2 authentication flow
+- fix(api): resolve timeout error in user endpoint
+- docs(readme): update installation instructions
+- refactor(core): optimize database query performance
+- style(ui): improve button spacing and colors
+
+Important:
+- Be specific: what changed, not just "update code"
+- Use scope for grouping related changes
+- Write in English
+- Avoid generic phrases like "update", "fix", "change"
+- Specify the exact functionality or issue
+
+Return only the commit message, without additional explanations."""
     
     # Используем OpenAI SDK (AITUNNEL совместим с OpenAI API)
     if OPENAI_SDK_AVAILABLE:
@@ -88,11 +105,11 @@ Write only the commit message, without additional text."""
             completion = client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": "You are a helpful AI assistant that specializes in creating conventional commit messages."},
+                    {"role": "system", "content": "You are an expert at creating high-quality commit messages in Conventional Commits format. Your messages must be informative, specific, and understandable for both developers and AI systems. Always use the format type(scope): description with specific details of changes."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=100,  # Достаточно для короткого сообщения коммита
-                temperature=0.3  # Снижена для более детерминированных результатов
+                max_tokens=100,
+                temperature=0.3
             )
             
             # Извлекаем сообщение из ответа
@@ -127,11 +144,11 @@ Write only the commit message, without additional text."""
         payload = {
             "model": model,
             "messages": [
-                {"role": "system", "content": "You are a helpful AI assistant that specializes in creating conventional commit messages."},
+                {"role": "system", "content": "Ты эксперт по созданию качественных сообщений коммитов в формате Conventional Commits. Твои сообщения должны быть информативными, конкретными и понятными как для разработчиков, так и для AI-систем. Всегда используй формат type(scope): описание с конкретными деталями изменений."},
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": 100,  # Достаточно для короткого сообщения коммита
-            "temperature": 0.3  # Снижена для более детерминированных результатов
+            "max_tokens": 100,
+            "temperature": 0.3
         }
         
         try:

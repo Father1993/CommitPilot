@@ -1,203 +1,202 @@
 # CommitPilot 🤖
 
-Автоматизация git-коммитов с AI-генерацией сообщений в формате Conventional Commits.
+Automate git commits with AI-generated messages in Conventional Commits format.
 
-## Простое использование
+## Quick Usage
 
-**После установки** (один раз) используйте в **любом проекте**:
+**After installation** (one time), use in **any project**:
 
 ```bash
-cd /путь/к/вашему/проекту
-acommit              # Автоматически: git add + commit + push
-acommit-here         # Только коммит без push
+cd /path/to/your/project
+acommit              # Automatically: git add + commit + push
+acommit-here         # Commit only, no push
 ```
 
-Не нужно копировать файлы в каждый проект — команды работают глобально!
+No need to copy files to each project — commands work globally!
 
-## Быстрый старт
+## Quick Start
 
-### Установка (один раз)
+### Installation (one time)
 
 ```bash
 git clone https://github.com/Father1993/CommitPilot.git
 cd CommitPilot
 bash install.sh
-source ~/.bashrc  # или ~/.zshrc
+source ~/.bashrc  # or ~/.zshrc
 ```
 
-После установки команды `acommit` будут работать из **любой директории** с git-репозиторием.
+After installation, `acommit` commands will work from **any directory** with a git repository.
 
-### Настройка
+### Configuration
 
-Создайте файл `.env` в корне проекта:
+Create a `.env` file in your project root:
 
 ```env
-AI_TUNNEL=sk-aitunnel-ваш_токен_здесь
-# Опционально: кастомный API эндпоинт и модель
+AI_TUNNEL=sk-aitunnel-your-token-here
+# Optional: custom API endpoint and model
 AITUNNEL_BASE_URL=https://api.aitunnel.ru/v1/
 AITUNNEL_MODEL=gpt-4.1
 ```
 
-Или используйте `config.ini` (пример в `config.ini.example`):
+Or use `config.ini` (example in `config.ini.example`):
 
 ```ini
 [DEFAULT]
 api_provider = aitunnel
-aitunnel_token = sk-aitunnel-ваш_токен_здесь
+aitunnel_token = sk-aitunnel-your-token-here
 aitunnel_base_url = https://api.aitunnel.ru/v1/
 aitunnel_model = gpt-4.1
 branch = master
 max_diff_size = 7000
 ```
 
-**Примечание**: `config.ini` хранится в директории CommitPilot и используется для всех проектов. Токены лучше хранить в `.env` файле каждого проекта.
+**Note**: `config.ini` is stored in the CommitPilot directory and used for all projects. Tokens are better stored in `.env` files in each project.
 
-### Использование
+### Usage
 
-**Основные команды:**
+**Main commands:**
 ```bash
-acommit              # Коммит с AI-сообщением и push в ветку по умолчанию
-acommit-here         # Только коммит без push
-acommit-dev          # Коммит и push в ветку dev
-acommit-main         # Коммит и push в ветку main
-acommit-master       # Коммит и push в ветку master
+acommit              # Commit with AI message and push to default branch
+acommit-here         # Commit only, no push
+acommit-dev          # Commit and push to dev branch
+acommit-main         # Commit and push to main branch
+acommit-master       # Commit and push to master branch
 ```
 
-**Дополнительные опции:**
+**Additional options:**
 ```bash
-acommit -b branch    # Коммит в указанную ветку
-acommit -m "msg"     # Свое сообщение (отключает AI)
-acommit -p openai    # Выбор провайдера (aitunnel/openai/huggingface)
-acommit --test       # Проверка настроек
-acommit --get-message # Только генерация сообщения
+acommit -b branch    # Commit to specified branch
+acommit -m "msg"     # Custom message (disables AI)
+acommit -p openai    # Choose provider (aitunnel/openai/huggingface)
+acommit --test       # Check settings
+acommit --get-message # Generate message only
 ```
 
-## Особенности
+## Features
 
-- 🚀 **Автоматизация**: `git add`, `git commit`, `git push` одной командой
-- 🧠 **AI провайдеры**: AITUNNEL (по умолчанию), OpenAI, Hugging Face
-- 🔄 **Git hooks**: Автоматическая генерация при `git commit`
-- 💡 **Conventional Commits**: Сообщения в стандартном формате
-- 🔒 **Безопасность**: Поддержка `.env` для токенов
+- 🚀 **Automation**: `git add`, `git commit`, `git push` in one command
+- 🧠 **AI Providers**: AITUNNEL (default), OpenAI, Hugging Face
+- 🔄 **Git Hooks**: Automatic generation on `git commit`
+- 💡 **Conventional Commits**: Messages in standard format
+- 🔒 **Security**: `.env` support for tokens
 
-## Требования
+## Requirements
 
 - Python 3.7+
 - Git
-- Зависимости: `requests`, `python-dotenv`, `openai`
-- API токен: [AITUNNEL](https://aitunnel.ru/) (рекомендуется), [OpenAI](https://platform.openai.com/api-keys) или [Hugging Face](https://huggingface.co/settings/tokens)
+- Dependencies: `requests`, `python-dotenv`, `openai`
+- API Token: [AITUNNEL](https://aitunnel.ru/) (recommended), [OpenAI](https://platform.openai.com/api-keys) or [Hugging Face](https://huggingface.co/settings/tokens)
 
-## Как это работает
+## How It Works
 
-1. **Анализ изменений**: Получение `git diff` и `git status`
-2. **Генерация сообщения**: Отправка в AITUNNEL API (совместим с OpenAI)
-3. **Создание коммита**: `git add .` и `git commit` с AI-сообщением
-4. **Отправка**: `git push` в указанную ветку (опционально)
+1. **Analyze changes**: Get `git diff` and `git status`
+2. **Generate message**: Send to AITUNNEL API (OpenAI compatible)
+3. **Create commit**: `git add .` and `git commit` with AI message
+4. **Push**: `git push` to specified branch (optional)
 
-**Формат сообщений**: Conventional Commits (`тип(область): описание`)
+**Message format**: Conventional Commits (`type(scope): description`)
 
-## Способы использования
+## Usage Methods
 
-### Способ 1: Глобальные алиасы (рекомендуется)
+### Method 1: Global Aliases (Recommended)
 
-**Установка один раз:**
+**Install once:**
 ```bash
 cd CommitPilot
 bash install.sh
-source ~/.bashrc  # или ~/.zshrc
+source ~/.bashrc  # or ~/.zshrc
 ```
 
-**Использование в любом проекте:**
+**Use in any project:**
 ```bash
-cd /путь/к/вашему/проекту
-acommit              # Коммит + push
-acommit-here         # Только коммит
-acommit-dev          # Коммит в dev
+cd /path/to/your/project
+acommit              # Commit + push
+acommit-here         # Commit only
+acommit-dev          # Commit to dev
 ```
 
-### Способ 2: Локальное использование
+### Method 2: Local Usage
 
-**В директории проекта:**
+**In project directory:**
 ```bash
-# Скопируйте CommitPilot в проект или используйте напрямую
-python /путь/к/CommitPilot/auto_commit.py
-python /путь/к/CommitPilot/auto_commit.py -c  # Только коммит
-python /путь/к/CommitPilot/auto_commit.py -b dev  # В ветку dev
+# Copy CommitPilot to project or use directly
+python /path/to/CommitPilot/auto_commit.py
+python /path/to/CommitPilot/auto_commit.py -c  # Commit only
+python /path/to/CommitPilot/auto_commit.py -b dev  # To dev branch
 ```
 
-**Или создайте локальный алиас в проекте:**
+**Or create a local alias in project:**
 ```bash
-# В корне проекта создайте .bashrc или добавьте в ~/.bashrc
+# In project root create .bashrc or add to ~/.bashrc
 alias acommit-local='python "$(pwd)/../CommitPilot/auto_commit.py"'
 ```
 
-## Примеры использования
+## Examples
 
-**Локальный коммит:**
+**Local commit:**
 ```bash
-acommit-here  # Коммит без push
+acommit-here  # Commit without push
 ```
 
-**Работа с ветками:**
+**Working with branches:**
 ```bash
-acommit-dev   # Коммит в dev
-acommit -b feature/new-feature  # В любую ветку
+acommit-dev   # Commit to dev
+acommit -b feature/new-feature  # To any branch
 ```
 
-**Git hooks** (автогенерация при `git commit`):
+**Git hooks** (auto-generation on `git commit`):
 ```bash
-cp prepare-commit-msg /путь/к/проекту/.git/hooks/
-chmod +x /путь/к/проекту/.git/hooks/prepare-commit-msg
+cp prepare-commit-msg /path/to/project/.git/hooks/
+chmod +x /path/to/project/.git/hooks/prepare-commit-msg
 ```
 
-**Примеры сообщений:**
+**Message examples:**
 - `feat(auth): add OAuth authentication`
 - `fix(api): resolve timeout issue`
 - `docs: update installation guide`
 - `refactor(core): optimize diff processing`
 
-## Устранение проблем
+## Troubleshooting
 
-**Проверка настроек:**
+**Check settings:**
 ```bash
 acommit --test
 ```
 
-**Ошибка "API токен не настроен":**
-- Проверьте `.env` файл с `AI_TUNNEL=sk-aitunnel-...`
-- Или настройте `aitunnel_token` в `config.ini`
+**Error "API token not configured":**
+- Check `.env` file with `AI_TUNNEL=sk-aitunnel-...`
+- Or configure `aitunnel_token` in `config.ini`
 
-**Алиасы не работают:**
+**Aliases not working:**
 ```bash
-source ~/.bashrc  # или ~/.zshrc
+source ~/.bashrc  # or ~/.zshrc
 ```
 
-## Безопасность
+## Security
 
-- Файлы `.env` и `config.ini` в `.gitignore`
-- Не публикуйте токены в публичных репозиториях
-- Используйте `.env` для локальной разработки
+- Files `.env` and `config.ini` in `.gitignore`
+- Don't publish tokens in public repositories
+- Use `.env` for local development
 
-## Лицензия
+## License
 
 MIT © Andrej Spinej
 
-## Архитектура
+## Architecture
 
 ```
 CommitPilot/
-├── auto_commit.py          # Основной модуль
+├── auto_commit.py          # Main module
 ├── aitunnel_support.py     # AITUNNEL API
 ├── openai_support.py       # OpenAI API
 ├── prepare-commit-msg       # Git hook
-└── install.sh              # Установщик
+└── install.sh              # Installer
 ```
 
-## API Провайдеры
+## API Providers
 
-| Провайдер | Модель | Токен |
-|-----------|--------|-------|
-| **AITUNNEL** (по умолчанию) | gpt-4.1 | `AI_TUNNEL` в `.env` |
-| OpenAI | gpt-4o-mini | `openai_token` в config.ini |
-| Hugging Face | Mixtral-8x7B | `huggingface_token` в config.ini |
-
+| Provider | Model | Token |
+|----------|-------|-------|
+| **AITUNNEL** (default) | gpt-4.1 | `AI_TUNNEL` in `.env` |
+| OpenAI | gpt-4o-mini | `openai_token` in config.ini |
+| Hugging Face | Mixtral-8x7B | `huggingface_token` in config.ini |

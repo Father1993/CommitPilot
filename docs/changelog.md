@@ -1,95 +1,97 @@
-# Журнал изменений
+# Changelog
 
-## [2026-01-18] - AITUNNEL по умолчанию и упрощение документации
+## [2026-01-18] - AITUNNEL default and documentation simplification
 
-### Изменено
+### Changed
 
--   AITUNNEL установлен как провайдер по умолчанию
--   Модель по умолчанию обновлена на gpt-4.1
--   Обновлены примеры .env и документация по настройке
--   Документация упрощена: удалены лишние файлы, оставлены только README.md и changelog.md
--   Обновлены алиасы в документации: `acommit`, `acommit-here`, `acommit-dev`, `acommit-main`, `acommit-master`
--   Конфигурация теперь хранится в директории CommitPilot (не создается .commits в проектах)
--   Добавлен `config.ini.example` как пример конфигурации
--   `config.ini` убран из `.gitignore` (не содержит чувствительных данных)
--   Упрощен вывод программы: только сообщение коммита и статус отправки
--   Ветка по умолчанию изменена на `master`
--   `max_diff_size` увеличен до 7000 символов
+-   AITUNNEL set as default provider
+-   Default model updated to gpt-4.1
+-   Updated .env examples and configuration documentation
+-   Documentation simplified: removed extra files, kept only README.md and changelog.md
+-   Updated aliases in documentation: `acommit`, `acommit-here`, `acommit-dev`, `acommit-main`, `acommit-master`
+-   Configuration now stored in CommitPilot directory (no .commits created in projects)
+-   Added `config.ini.example` as configuration example
+-   Removed `config.ini` from `.gitignore` (doesn't contain sensitive data)
+-   Simplified program output: only commit message and push status
+-   Default branch changed to `master`
+-   `max_diff_size` increased to 7000 characters
+-   All documentation and prompts translated to English
+-   Improved commit message prompts with best practices
 
-## [2023-10-15] - Первый выпуск
+## [2023-10-15] - First Release
 
-### Добавлено
+### Added
 
--   Первая рабочая версия CommitPilot
--   Интеграция с Hugging Face API
--   Интеграция с OpenAI API
--   Установочный скрипт для быстрой настройки
--   Git hooks для автоматической генерации сообщений
+-   First working version of CommitPilot
+-   Hugging Face API integration
+-   OpenAI API integration
+-   Installation script for quick setup
+-   Git hooks for automatic message generation
 
-### Изменено
+### Changed
 
--   Оптимизирован формат запросов к API для лучших результатов
+-   Optimized API request format for better results
 
-### Исправлено
+### Fixed
 
--   Корректная обработка ошибок при отсутствии интернет-соединения
--   Корректная обработка различных форматов ответов API
+-   Correct error handling when internet connection is missing
+-   Correct handling of various API response formats
 
-## [2023-10-20] - Улучшения документации
+## [2023-10-20] - Documentation Improvements
 
-### Добавлено
+### Added
 
--   Расширенная документация в формате Markdown
--   Примеры использования с различными сценариями
--   Руководство для разработчиков
+-   Extended documentation in Markdown format
+-   Usage examples with various scenarios
+-   Developer guide
 
-### Изменено
+### Changed
 
--   Улучшен формат сообщений об ошибках
--   Уточнены сообщения в интерфейсе командной строки
+-   Improved error message format
+-   Clarified command line interface messages
 
-## [2023-11-05] - Версия 1.0.0
+## [2023-11-05] - Version 1.0.0
 
-### Добавлено
+### Added
 
--   Полная поддержка формата Conventional Commits
--   Новые алиасы для удобного использования (acommit-dev, acommit-main)
--   Конфигурационный файл для сохранения настроек
+-   Full Conventional Commits format support
+-   New aliases for convenient use (acommit-dev, acommit-main)
+-   Configuration file for saving settings
 
-### Изменено
+### Changed
 
--   Улучшен механизм определения области (scope) коммитов
--   Оптимизирована обработка больших diff файлов
+-   Improved commit scope detection mechanism
+-   Optimized large diff file processing
 
-### Исправлено
+### Fixed
 
--   Проблема с кодировкой при получении git diff
--   Корректная обработка пустых коммитов
+-   Encoding issue when getting git diff
+-   Correct handling of empty commits
 
-## [2024-05-30] - Улучшение генерации коммитов
+## [2024-05-30] - Commit Generation Improvements
 
-### Добавлено
+### Added
 
--   Поддержка модели Mixtral для улучшения качества сообщений
--   Обновленные промпты для AI на английском языке
--   Обновлена логика обработки ответов от API
+-   Mixtral model support for better message quality
+-   Updated AI prompts in English
+-   Updated API response processing logic
 
-### Изменено
+### Changed
 
--   Улучшен механизм извлечения текста сообщений из ответов API
--   Стандартное сообщение коммита теперь на английском языке
--   Обновлены параметры запросов к API для более стабильных результатов
+-   Improved message extraction mechanism from API responses
+-   Default commit message now in English
+-   Updated API request parameters for more stable results
 
-### Исправлено
+### Fixed
 
--   Проблема с парсингом ответов Hugging Face API
--   Некорректная обработка больших diff файлов
--   Улучшена обработка ошибок при запросах к API
+-   Hugging Face API response parsing issue
+-   Incorrect handling of large diff files
+-   Improved error handling for API requests
 
-## [2023-12-10] - Ребрендинг проекта
+## [2023-12-10] - Project Rebranding
 
-### Изменено
+### Changed
 
--   Название проекта изменено на "CommitPilot"
--   Обновлены все упоминания старого названия в документации и коде
--   Улучшено форматирование документации
+-   Project name changed to "CommitPilot"
+-   Updated all mentions of old name in documentation and code
+-   Improved documentation formatting

@@ -3,7 +3,7 @@
 
 """
 @file: openai_support.py
-@description: Модуль для генерации сообщений коммитов с помощью OpenAI API
+@description: Module for generating commit messages using OpenAI API
 @author: CommitPilot Team
 @version: 1.0.0
 @license: MIT
@@ -22,13 +22,13 @@ except ImportError:
     OPENAI_SDK_AVAILABLE = False
     import requests
 
-# Настройка логгера
+# Configure logger
 logger = logging.getLogger(__name__)
 
 # Константы
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 
-# Множество префиксов для быстрого поиска (оптимизация парсинга)
+# Set of prefixes for fast search (parsing optimization)
 COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
 
 def generate_commit_message_with_openai(diff: str, status: str, config: configparser.ConfigParser) -> str:
@@ -54,20 +54,36 @@ def generate_commit_message_with_openai(diff: str, status: str, config: configpa
         diff = diff[:max_size] + "\n... (truncated)"
         logger.debug(f"Размер diff превышает лимит. Обрезано до {max_size} символов.")
     
-    # Формируем промпт для модели
-    prompt = f"""Проанализируй изменения в git и создай краткое, но информативное сообщение для коммита.
-    
-Статус изменений:
+    # Form prompt for the model
+    prompt = f"""Analyze the git changes and create a brief but informative commit message in Conventional Commits format.
+
+Git Status:
 {status}
 
-Изменения (diff):
+Git Diff:
 {diff}
 
-Создай однострочное сообщение коммита в формате: тип(область): сообщение
-Где тип - один из: feat, fix, docs, style, refactor, test, chore
-Например: "feat(auth): добавлена авторизация через OAuth"
-Пиши только сообщение коммита, без дополнительного текста.
-"""
+Message Requirements:
+1. Format: type(scope): brief description
+2. Type: feat, fix, docs, style, refactor, test, chore
+3. Scope: module/component that changed (optional but recommended)
+4. Description: what exactly changed and why (max 50 characters)
+
+Good Examples:
+- feat(auth): add OAuth2 authentication flow
+- fix(api): resolve timeout error in user endpoint
+- docs(readme): update installation instructions
+- refactor(core): optimize database query performance
+- style(ui): improve button spacing and colors
+
+Important:
+- Be specific: what changed, not just "update code"
+- Use scope for grouping related changes
+- Write in English
+- Avoid generic phrases like "update", "fix", "change"
+- Specify the exact functionality or issue
+
+Return only the commit message, without additional explanations."""
     
     # Используем новый SDK если доступен
     if OPENAI_SDK_AVAILABLE:
@@ -78,11 +94,11 @@ def generate_commit_message_with_openai(diff: str, status: str, config: configpa
             completion = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "Ты - ассистент, который создает качественные сообщения для git-коммитов."},
+                    {"role": "system", "content": "You are an expert at creating high-quality commit messages in Conventional Commits format. Your messages must be informative, specific, and understandable for both developers and AI systems. Always use the format type(scope): description with specific details of changes."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=100,
-                temperature=0.5
+                temperature=0.3
             )
             
             # Извлекаем сообщение из ответа
@@ -117,11 +133,11 @@ def generate_commit_message_with_openai(diff: str, status: str, config: configpa
         payload = {
             "model": "gpt-3.5-turbo",
             "messages": [
-                {"role": "system", "content": "Ты - ассистент, который создает качественные сообщения для git-коммитов."},
+                {"role": "system", "content": "Ты эксперт по созданию качественных сообщений коммитов в формате Conventional Commits. Твои сообщения должны быть информативными, конкретными и понятными как для разработчиков, так и для AI-систем. Всегда используй формат type(scope): описание с конкретными деталями изменений."},
                 {"role": "user", "content": prompt}
             ],
             "max_tokens": 100,
-            "temperature": 0.5
+            "temperature": 0.3
         }
         
         try:

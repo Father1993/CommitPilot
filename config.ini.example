@@ -1,24 +1,24 @@
-# CommitPilot - Пример конфигурации
-# Скопируйте этот файл в config.ini и настройте под себя
+# CommitPilot - Configuration Example
+# Copy this file to config.ini and configure for yourself
 
 [DEFAULT]
-# Выберите провайдера AI: aitunnel (по умолчанию), huggingface или openai
+# Choose AI provider: aitunnel (default), huggingface or openai
 api_provider = aitunnel
 
-# AITUNNEL API настройки (рекомендуется)
-# Токен можно также указать в файле .env как AI_TUNNEL=sk-aitunnel-xxx
+# AITUNNEL API settings (recommended)
+# Token can also be specified in .env file as AI_TUNNEL=sk-aitunnel-xxx
 aitunnel_token = 
 aitunnel_base_url = https://api.aitunnel.ru/v1/
 aitunnel_model = gpt-4.1
 
-# Hugging Face API настройки
+# Hugging Face API settings
 huggingface_token = 
 
-# OpenAI API настройки
+# OpenAI API settings
 openai_token = 
 
-# Ветка по умолчанию для git push
+# Default branch for git push
 branch = master
 
-# Максимальный размер diff для отправки в AI API
+# Maximum diff size for sending to AI API
 max_diff_size = 7000
