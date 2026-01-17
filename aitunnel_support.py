@@ -14,7 +14,7 @@ import logging
 import configparser
 from typing import Dict, Any
 
-# Импортируем OpenAI SDK (AITUNNEL совместим с OpenAI API)
+# Import OpenAI SDK (AITUNNEL is compatible with OpenAI API)
 try:
     from openai import OpenAI
     OPENAI_SDK_AVAILABLE = True
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 AITUNNEL_BASE_URL = "https://api.aitunnel.ru/v1/"
 
-# Множество префиксов для быстрого поиска (оптимизация парсинга)
+# Set of prefixes for fast search (parsing optimization)
 COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
 
 def generate_commit_message_with_aitunnel(diff: str, status: str, config: configparser.ConfigParser) -> str:
@@ -62,36 +62,36 @@ def generate_commit_message_with_aitunnel(diff: str, status: str, config: config
         diff = diff[:max_size] + "\n... (truncated)"
         logger.debug(f"Размер diff превышает лимит. Обрезано до {max_size} символов.")
     
-    # Формируем промпт для модели
-    prompt = f"""Проанализируй изменения в git и создай краткое, но информативное сообщение коммита в формате Conventional Commits.
+    # Form prompt for the model
+    prompt = f"""Analyze the git changes and create a brief but informative commit message in Conventional Commits format.
 
-Статус изменений:
+Git Status:
 {status}
 
-Изменения (diff):
+Git Diff:
 {diff}
 
-Требования к сообщению:
-1. Формат: type(scope): краткое описание
-2. Тип (type): feat, fix, docs, style, refactor, test, chore
-3. Область (scope): модуль/компонент, который изменился (опционально, но желательно)
-4. Описание: что именно изменилось и зачем (максимум 50 символов)
+Message Requirements:
+1. Format: type(scope): brief description
+2. Type: feat, fix, docs, style, refactor, test, chore
+3. Scope: module/component that changed (optional but recommended)
+4. Description: what exactly changed and why (max 50 characters)
 
-Примеры хороших сообщений:
+Good Examples:
 - feat(auth): add OAuth2 authentication flow
 - fix(api): resolve timeout error in user endpoint
 - docs(readme): update installation instructions
 - refactor(core): optimize database query performance
 - style(ui): improve button spacing and colors
 
-Важно:
-- Будь конкретным: что изменилось, а не просто "update code"
-- Используй scope для группировки изменений
-- Пиши на английском языке
-- Избегай общих фраз типа "update", "fix", "change"
-- Указывай конкретную функциональность или проблему
+Important:
+- Be specific: what changed, not just "update code"
+- Use scope for grouping related changes
+- Write in English
+- Avoid generic phrases like "update", "fix", "change"
+- Specify the exact functionality or issue
 
-Верни только сообщение коммита, без дополнительных объяснений."""
+Return only the commit message, without additional explanations."""
     
     # Используем OpenAI SDK (AITUNNEL совместим с OpenAI API)
     if OPENAI_SDK_AVAILABLE:
@@ -105,7 +105,7 @@ def generate_commit_message_with_aitunnel(diff: str, status: str, config: config
             completion = client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": "Ты эксперт по созданию качественных сообщений коммитов в формате Conventional Commits. Твои сообщения должны быть информативными, конкретными и понятными как для разработчиков, так и для AI-систем. Всегда используй формат type(scope): описание с конкретными деталями изменений."},
+                    {"role": "system", "content": "You are an expert at creating high-quality commit messages in Conventional Commits format. Your messages must be informative, specific, and understandable for both developers and AI systems. Always use the format type(scope): description with specific details of changes."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=100,

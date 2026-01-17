@@ -2,7 +2,7 @@
 
 """
 @file: auto_commit.py
-@description: Автоматизация git-коммитов с использованием AI для создания осмысленных сообщений
+@description: Automate git commits with AI-generated meaningful messages
 @author: Andrej Spinej
 @version: 1.0.0
 @license: MIT
@@ -20,7 +20,7 @@ import logging
 from functools import lru_cache
 from typing import Dict, Optional, Any, Tuple
 
-# Попытка загрузить переменные из .env файла
+# Try to load variables from .env file
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -28,11 +28,11 @@ try:
 except ImportError:
     DOTENV_AVAILABLE = False
 
-# Настройка логирования (только ошибки и предупреждения)
+# Configure logging (errors and warnings only)
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-# Константы
+# Constants
 VERSION = "1.0.0"
 CONFIG_FILE = Path(__file__).resolve().parent / "config.ini"
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
@@ -40,14 +40,14 @@ API_URL = (
     "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
 )
 
-# Кэш для конфигурации (обновляется при изменении файла)
+# Cache for configuration (updated when file changes)
 _config_cache: Optional[configparser.ConfigParser] = None
 _config_file_mtime: Optional[float] = None
 
 # Множество префиксов для быстрого поиска (оптимизация парсинга)
 COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
 
-# Импортируем модули поддержки AI провайдеров
+# Import AI provider support modules
 OPENAI_SUPPORT = False
 AITUNNEL_SUPPORT = False
 
