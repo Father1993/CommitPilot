@@ -32,10 +32,17 @@ def test_setup_config_existing_file(mock_config_file):
     """Тестирует функцию setup_config когда файл конфигурации существует."""
     with patch('auto_commit.CONFIG_FILE', mock_config_file), \
          patch.dict(os.environ, {}, clear=True):
+        # Сбрасываем кэш перед тестом
+        auto_commit._config_cache = None
+        auto_commit._config_file_mtime = None
         config = auto_commit.setup_config()
         assert config['DEFAULT']['api_provider'] == 'aitunnel'
         assert config['DEFAULT']['aitunnel_token'] == 'test_token'
         assert config['DEFAULT']['branch'] == 'dev'
+        
+        # Проверяем кэширование - второй вызов должен использовать кэш
+        config2 = auto_commit.setup_config()
+        assert config is config2  # Должен быть тот же объект из кэша
 
 def test_setup_config_new_file():
     """Тестирует функцию setup_config когда файл конфигурации не существует."""
@@ -45,6 +52,9 @@ def test_setup_config_new_file():
          patch('os.makedirs') as mock_makedirs, \
          patch('builtins.open', mock_open()) as m, \
          patch.dict(os.environ, {}, clear=True):
+        # Сбрасываем кэш перед тестом
+        auto_commit._config_cache = None
+        auto_commit._config_file_mtime = None
         
         config = auto_commit.setup_config()
         
