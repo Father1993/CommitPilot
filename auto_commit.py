@@ -28,8 +28,8 @@ try:
 except ImportError:
     DOTENV_AVAILABLE = False
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+# Настройка логирования (только ошибки и предупреждения)
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 # Константы
@@ -125,10 +125,8 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
         with open(CONFIG_FILE, "w") as configfile:
             config.write(configfile)
 
-        logger.info(f"✅ Создан конфигурационный файл {CONFIG_FILE}")
-        logger.warning(
-            "⚠️ Пожалуйста, добавьте API токен для выбранного провайдера в файл конфигурации или .env"
-        )
+        print(f"✅ Создан конфигурационный файл {CONFIG_FILE}")
+        print("⚠️ Добавьте API токен в файл конфигурации или .env")
     
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE)
@@ -326,10 +324,10 @@ def git_add_all() -> None:
         SystemExit: При ошибке выполнения git команды
     """
     try:
-        subprocess.run(["git", "add", "."], check=True)
-        logger.info("✅ Добавлены все изменения в индекс")
+        subprocess.run(["git", "add", "."], check=True, capture_output=True)
+        print("✅ Добавлены изменения в индекс")
     except Exception as e:
-        logger.error(f"❌ Ошибка при добавлении изменений: {e}")
+        print(f"❌ Ошибка при добавлении изменений: {e}")
         sys.exit(1)
 
 
@@ -351,13 +349,13 @@ def git_commit(message: str) -> bool:
             ["git", "commit", "-m", message], capture_output=True, encoding="utf-8"
         )
         if result.returncode == 0:
-            logger.info(f'✅ Создан коммит с сообщением: "{message}"')
+            print("✅ Коммит создан")
             return True
         else:
-            logger.warning(f"⚠️ Не удалось создать коммит: {result.stderr}")
+            print(f"⚠️ Не удалось создать коммит: {result.stderr}")
             return False
     except Exception as e:
-        logger.error(f"❌ Ошибка при создании коммита: {e}")
+        print(f"❌ Ошибка при создании коммита: {e}")
         sys.exit(1)
 
 
@@ -379,13 +377,13 @@ def git_push(branch: str) -> bool:
             ["git", "push", "origin", branch], capture_output=True, encoding="utf-8"
         )
         if result.returncode == 0:
-            logger.info(f"✅ Изменения отправлены в ветку {branch}")
+            print(f"✅ Изменения отправлены в ветку {branch}")
             return True
         else:
-            logger.warning(f"⚠️ Не удалось отправить изменения: {result.stderr}")
+            print(f"⚠️ Не удалось отправить изменения: {result.stderr}")
             return False
     except Exception as e:
-        logger.error(f"❌ Ошибка при отправке изменений: {e}")
+        print(f"❌ Ошибка при отправке изменений: {e}")
         sys.exit(1)
 
 
@@ -634,7 +632,7 @@ def main():
     if args.message:
         commit_message = args.message
     else:
-        print("🤖 Генерация сообщения коммита с помощью AI...")
+        print("🤖 Генерация сообщения...")
 
         # Выбираем провайдера AI
         provider = args.provider or config["DEFAULT"].get("api_provider", "aitunnel")
@@ -652,8 +650,8 @@ def main():
                 diff, status, config
             )
 
-    # Выводим сгенерированное сообщение перед созданием коммита
-    print(f'📝 Сообщение коммита: "{commit_message}"')
+    # Выводим сгенерированное сообщение
+    print(f'📝 {commit_message}')
 
     # Создаем коммит
     git_commit(commit_message)
@@ -661,9 +659,6 @@ def main():
     # Отправляем изменения, если не указан флаг --commit-only
     if not args.commit_only:
         branch = args.branch or config["DEFAULT"]["branch"]
-        print(
-            f'🚀 Отправка изменений в ветку {branch} с сообщением: "{commit_message}"...'
-        )
         git_push(branch)
 
 

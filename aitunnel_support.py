@@ -22,7 +22,8 @@ except ImportError:
     OPENAI_SDK_AVAILABLE = False
     import requests
 
-# Настройка логгера
+# Настройка логгера (только ошибки)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Константы
