@@ -97,11 +97,11 @@ Write only the commit message, without additional text."""
             # Извлекаем сообщение из ответа
             message = completion.choices[0].message.content.strip()
             
-            # Обрабатываем ответ для получения только строки коммита
+            # Обрабатываем ответ для получения только строки коммита (оптимизировано)
             lines = message.split('\n')
             for line in lines:
                 line_stripped = line.strip()
-                if any(line_stripped.startswith(prefix) for prefix in ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore']):
+                if any(line_stripped.startswith(prefix) for prefix in COMMIT_PREFIXES):
                     return line_stripped
             
             # Если не нашли формат, возвращаем первую непустую строку
@@ -142,11 +142,11 @@ Write only the commit message, without additional text."""
             # Извлекаем сообщение из ответа
             message = result["choices"][0]["message"]["content"].strip()
             
-            # Обрабатываем ответ для получения только строки коммита
+            # Обрабатываем ответ для получения только строки коммита (оптимизировано)
             lines = message.split('\n')
             for line in lines:
                 line_stripped = line.strip()
-                if any(line_stripped.startswith(prefix) for prefix in ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore']):
+                if any(line_stripped.startswith(prefix) for prefix in COMMIT_PREFIXES):
                     return line_stripped
             
             # Если не нашли формат, возвращаем первую непустую строку

@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 # Константы
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 
+# Множество префиксов для быстрого поиска (оптимизация парсинга)
+COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
+
 def generate_commit_message_with_openai(diff: str, status: str, config: configparser.ConfigParser) -> str:
     """
     Генерирует сообщение коммита с помощью OpenAI API
