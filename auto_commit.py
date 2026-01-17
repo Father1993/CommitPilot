@@ -418,7 +418,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print("CommitPilot v1.0.0")
+        print("CommitPilot v1.0.1")
         return
 
     config = setup_config()

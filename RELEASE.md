@@ -42,18 +42,18 @@ Update `docs/changelog.md` with release notes for the new version.
 
 ```bash
 # Create annotated tag
-git tag -a v1.0.0 -m "Release version 1.0.0"
+git tag -a v1.0.1 -m "Release version 1.0.0"
 
 # Push tag to GitHub
-git push origin v1.0.0
+git push origin v1.0.1
 ```
 
 ### Step 5: Create Release on GitHub
 
 1. Go to your repository on GitHub
 2. Click **"Releases"** → **"Create a new release"**
-3. Select tag: `v1.0.0`
-4. Release title: `v1.0.0` or `Release 1.0.0`
+3. Select tag: `v1.0.1`
+4. Release title: `v1.0.1` or `Release 1.0.0`
 5. Description: Copy from `docs/changelog.md` for this version
 6. Check **"Set as the latest release"**
 7. Click **"Publish release"**
@@ -120,8 +120,8 @@ git commit -m "chore: bump version to 1.0.0"
 git push origin main
 
 # 3. Create and push tag
-git tag -a v1.0.0 -m "Release version 1.0.0"
-git push origin v1.0.0
+git tag -a v1.0.1 -m "Release version 1.0.0"
+git push origin v1.0.1
 
 # 4. Create release on GitHub (via web interface)
 ```
