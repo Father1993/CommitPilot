@@ -42,8 +42,7 @@ def test_setup_config_existing_file(mock_config_file):
         auto_commit._config_cache = None
         auto_commit._config_file_mtime = None
         auto_commit._config_env_mtime = None
-        if hasattr(auto_commit.setup_config, '_env_loaded'):
-            delattr(auto_commit.setup_config, '_env_loaded')
+        auto_commit._env_loaded = False
         
         config = auto_commit.setup_config()
         assert config['DEFAULT']['api_provider'] == 'aitunnel'
@@ -67,8 +66,7 @@ def test_setup_config_new_file(tmp_path):
         auto_commit._config_cache = None
         auto_commit._config_file_mtime = None
         auto_commit._config_env_mtime = None
-        if hasattr(auto_commit.setup_config, '_env_loaded'):
-            delattr(auto_commit.setup_config, '_env_loaded')
+        auto_commit._env_loaded = False
         
         config = auto_commit.setup_config()
         
@@ -95,8 +93,7 @@ def test_setup_config_env_variables(tmp_path):
         auto_commit._config_cache = None
         auto_commit._config_file_mtime = None
         auto_commit._config_env_mtime = None
-        if hasattr(auto_commit.setup_config, '_env_loaded'):
-            delattr(auto_commit.setup_config, '_env_loaded')
+        auto_commit._env_loaded = False
         
         # Create a real config file for this test
         mock_config.write_text("""[DEFAULT]
@@ -201,11 +198,10 @@ def test_git_add_all_success():
     """Test successful file staging."""
     with patch('subprocess.run') as mock_run:
         mock_run.return_value.returncode = 0
-        
+
         auto_commit.git_add_all()
-        
-        # Check that correct command was called
-        mock_run.assert_called_with(['git', 'add', '.'], check=True, capture_output=True)
+
+        mock_run.assert_called_with(['git', 'add', '.'], capture_output=True, encoding='utf-8', check=True)
 
 
 def test_git_add_all_failure():
