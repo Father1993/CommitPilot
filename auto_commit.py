@@ -20,10 +20,8 @@ import logging
 from functools import lru_cache
 from typing import Dict, Optional, Any, Tuple
 
-# Try to load variables from .env file
 try:
     from dotenv import load_dotenv
-    load_dotenv()
     DOTENV_AVAILABLE = True
 except ImportError:
     DOTENV_AVAILABLE = False
@@ -34,7 +32,14 @@ logger = logging.getLogger(__name__)
 
 # Constants
 VERSION = "1.0.0"
-CONFIG_FILE = Path(__file__).resolve().parent / "config.ini"
+APP_DIR = Path(__file__).resolve().parent
+CONFIG_FILE = APP_DIR / "config.ini"
+ENV_FILE = APP_DIR / ".env"
+ENV_OVERRIDES = (
+    ("AI_TUNNEL", "aitunnel_token"),
+    ("AITUNNEL_BASE_URL", "aitunnel_base_url"),
+    ("AITUNNEL_MODEL", "aitunnel_model"),
+)
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
 API_URL = (
     "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
@@ -88,11 +93,10 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
     """
     global _config_cache, _config_file_mtime
     
-    # Load variables from .env file (only once)
-    if DOTENV_AVAILABLE and not hasattr(setup_config, '_env_loaded'):
-        load_dotenv()
+    if DOTENV_AVAILABLE and not hasattr(setup_config, "_env_loaded"):
+        load_dotenv(ENV_FILE)
         setup_config._env_loaded = True
-    
+
     # Check cache
     if not force_reload and _config_cache is not None:
         if CONFIG_FILE.exists():
@@ -123,19 +127,13 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
             config.write(configfile)
 
         print(f"✅ Created configuration file {CONFIG_FILE}")
-        print("⚠️ Add API token to config file or .env")
+        print(f"⚠️ Add API token to {ENV_FILE} or config file")
     
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE)
     
-    # Override values from .env file if present
-    for env_key, config_key in [
-        ("AI_TUNNEL", "aitunnel_token"),
-        ("AITUNNEL_BASE_URL", "aitunnel_base_url"),
-        ("AITUNNEL_MODEL", "aitunnel_model")
-    ]:
-        env_value = os.getenv(env_key)
-        if env_value:
+    for env_key, config_key in ENV_OVERRIDES:
+        if env_value := os.getenv(env_key):
             config["DEFAULT"][config_key] = env_value
     
     # Update cache
@@ -492,8 +490,7 @@ def main():
 
         print("✅ Configuration file created")
         print(f"📝 Please edit {CONFIG_FILE} and add your API token")
-        print("   Or create .env file in project root:")
-        print("   AI_TUNNEL=sk-aitunnel-your_token")
+        print(f"   Or create {ENV_FILE} with: AI_TUNNEL=sk-aitunnel-your_token")
         print("   Get AITUNNEL token: https://aitunnel.ru/")
         print("   Get Hugging Face token: https://huggingface.co/settings/tokens")
         print("   Get OpenAI token: https://platform.openai.com/api-keys")
