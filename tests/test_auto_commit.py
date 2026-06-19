@@ -41,6 +41,7 @@ def test_setup_config_existing_file(mock_config_file):
         # Reset cache and dotenv flag before test
         auto_commit._config_cache = None
         auto_commit._config_file_mtime = None
+        auto_commit._config_env_mtime = None
         if hasattr(auto_commit.setup_config, '_env_loaded'):
             delattr(auto_commit.setup_config, '_env_loaded')
         
@@ -65,6 +66,7 @@ def test_setup_config_new_file(tmp_path):
         # Reset cache and dotenv flag before test
         auto_commit._config_cache = None
         auto_commit._config_file_mtime = None
+        auto_commit._config_env_mtime = None
         if hasattr(auto_commit.setup_config, '_env_loaded'):
             delattr(auto_commit.setup_config, '_env_loaded')
         
@@ -92,6 +94,7 @@ def test_setup_config_env_variables(tmp_path):
          }, clear=True):
         auto_commit._config_cache = None
         auto_commit._config_file_mtime = None
+        auto_commit._config_env_mtime = None
         if hasattr(auto_commit.setup_config, '_env_loaded'):
             delattr(auto_commit.setup_config, '_env_loaded')
         
@@ -318,4 +321,4 @@ def test_default_commit_message():
 
 def test_version():
     """Test version constant."""
-    assert auto_commit.VERSION == "1.0.0"
+    assert auto_commit.VERSION == "1.0.1"
