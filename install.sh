@@ -50,6 +50,16 @@ warn "Setting permissions..."
 chmod +x "$AUTO_COMMIT" "$SCRIPT_DIR/prepare-commit-msg" 2>/dev/null || true
 
 detect_shell_rc() {
+    # Prefer the login shell's rc (zsh users often have both .bashrc and .zshrc)
+    case "${SHELL##*/}" in
+        zsh)
+            [ -f "$HOME/.zshrc" ] && { echo "$HOME/.zshrc"; return; }
+            ;;
+        bash)
+            [ -f "$HOME/.bashrc" ] && { echo "$HOME/.bashrc"; return; }
+            [ -f "$HOME/.bash_profile" ] && { echo "$HOME/.bash_profile"; return; }
+            ;;
+    esac
     if [ -f "$HOME/.bashrc" ]; then
         echo "$HOME/.bashrc"
     elif [ -f "$HOME/.bash_profile" ]; then
@@ -85,7 +95,7 @@ install_aliases() {
         echo "alias acommit-master=\"$PYTHON_CMD \\\"$AUTO_COMMIT\\\" -b master\""
         echo "alias acum=\"$PYTHON_CMD \\\"$AUTO_COMMIT\\\"\""
         echo "alias acm=\"$PYTHON_CMD \\\"$AUTO_COMMIT\\\" -c\""
-        echo "alias acmd=\"$PYTHON_CMD \\\"$AUTO_COMMIT\\\" -b dev\""
+        echo "alias acmd=\"$PYTHON_CMD \\\"$AUTO_COMMIT\\\" --deploy-link\""
         echo "alias acmm=\"$PYTHON_CMD \\\"$AUTO_COMMIT\\\" -b main\""
         echo "alias acmmm=\"$PYTHON_CMD \\\"$AUTO_COMMIT\\\" -b master\""
     } >> "$rc"

@@ -254,7 +254,7 @@ def test_git_push_success():
         result = auto_commit.git_push("master")
         
         # Check that correct command was called
-        mock_run.assert_called_with(['git', 'push', 'origin', 'master'], 
+        mock_run.assert_called_with(['git', 'push', '-u', 'origin', 'master'], 
                                    capture_output=True, encoding='utf-8')
         
         assert result is True
@@ -317,4 +317,119 @@ def test_default_commit_message():
 
 def test_version():
     """Test version constant."""
-    assert auto_commit.VERSION == "1.0.1"
+    assert auto_commit.VERSION == "1.1.0"
+
+
+def test_get_current_branch():
+    with patch('subprocess.run') as mock_run:
+        mock_run.return_value.stdout = "dev\n"
+        mock_run.return_value.returncode = 0
+        assert auto_commit.get_current_branch() == "dev"
+
+
+def test_get_current_branch_detached():
+    with patch('subprocess.run') as mock_run:
+        mock_run.return_value.stdout = "\n"
+        mock_run.return_value.returncode = 0
+        assert auto_commit.get_current_branch() is None
+
+
+def test_resolve_push_branch_override():
+    assert auto_commit.resolve_push_branch("feature") == "feature"
+
+
+def test_resolve_push_branch_current():
+    with patch('auto_commit.get_current_branch', return_value="fix-auth"):
+        assert auto_commit.resolve_push_branch(None) == "fix-auth"
+
+
+def test_resolve_push_branch_detached():
+    with patch('auto_commit.get_current_branch', return_value=None), \
+         patch('builtins.print') as mock_print:
+        assert auto_commit.resolve_push_branch(None) is None
+        mock_print.assert_called()
+
+
+def test_github_repo_url_https():
+    with patch('subprocess.run') as mock_run:
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = "https://github.com/Father1993/mk-27.ru.git\n"
+        assert auto_commit.github_repo_url() == "https://github.com/Father1993/mk-27.ru"
+
+
+def test_github_repo_url_ssh():
+    with patch('subprocess.run') as mock_run:
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = "git@github.com:Father1993/mk-27.ru.git\n"
+        assert auto_commit.github_repo_url() == "https://github.com/Father1993/mk-27.ru"
+
+
+def test_github_repo_url_ssh_scheme():
+    with patch('subprocess.run') as mock_run:
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = "ssh://git@github.com/Father1993/mk-27.ru.git\n"
+        assert auto_commit.github_repo_url() == "https://github.com/Father1993/mk-27.ru"
+
+
+def test_github_repo_url_non_github():
+    with patch('subprocess.run') as mock_run:
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = "git@gitlab.com:org/repo.git\n"
+        assert auto_commit.github_repo_url() is None
+
+
+def test_resolve_pr_base_feature_to_dev():
+    with patch('auto_commit.get_default_branch', return_value="master"), \
+         patch('auto_commit.remote_branch_exists', return_value=True):
+        assert auto_commit.resolve_pr_base("fix-auth") == "dev"
+
+
+def test_resolve_pr_base_dev_to_default():
+    with patch('auto_commit.get_default_branch', return_value="master"), \
+         patch('auto_commit.remote_branch_exists', return_value=False):
+        assert auto_commit.resolve_pr_base("dev") == "master"
+
+
+def test_resolve_pr_base_head_is_default():
+    with patch('auto_commit.get_default_branch', return_value="main"):
+        assert auto_commit.resolve_pr_base("main") is None
+
+
+def test_resolve_pr_base_head_is_other_production():
+    """main/master never get a deploy link, even if default differs."""
+    with patch('auto_commit.get_default_branch', return_value="main"), \
+         patch('auto_commit.remote_branch_exists', return_value=True):
+        assert auto_commit.resolve_pr_base("master") is None
+
+
+def test_resolve_pr_base_no_dev_uses_default():
+    with patch('auto_commit.get_default_branch', return_value="main"), \
+         patch('auto_commit.remote_branch_exists', return_value=False):
+        assert auto_commit.resolve_pr_base("feature-x") == "main"
+
+
+def test_print_deploy_link_compare_url():
+    with patch('auto_commit.resolve_pr_base', return_value="dev"), \
+         patch('auto_commit.github_repo_url', return_value="https://github.com/Father1993/mk-27.ru"), \
+         patch('auto_commit._find_open_pr_url', return_value=None), \
+         patch('builtins.print') as mock_print:
+        auto_commit.print_deploy_link("fix-auth")
+        mock_print.assert_called_with(
+            "🔗 https://github.com/Father1993/mk-27.ru/compare/dev...fix-auth?expand=1"
+        )
+
+
+def test_print_deploy_link_existing_pr():
+    with patch('auto_commit.resolve_pr_base', return_value="dev"), \
+         patch('auto_commit.github_repo_url', return_value="https://github.com/Father1993/mk-27.ru"), \
+         patch('auto_commit._find_open_pr_url', return_value="https://github.com/Father1993/mk-27.ru/pull/308"), \
+         patch('builtins.print') as mock_print:
+        auto_commit.print_deploy_link("fix-auth")
+        mock_print.assert_called_with("🔗 https://github.com/Father1993/mk-27.ru/pull/308")
+
+
+def test_print_deploy_link_skips_default_branch():
+    with patch('auto_commit.resolve_pr_base', return_value=None), \
+         patch('builtins.print') as mock_print:
+        auto_commit.print_deploy_link("main")
+        mock_print.assert_not_called()

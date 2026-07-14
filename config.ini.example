@@ -11,5 +11,6 @@ aitunnel_model = gpt-4.1
 huggingface_token =
 openai_token =
 
+# Legacy field (kept for existing configs; push uses current branch or -b)
 branch = master
 max_diff_size = 7000
