@@ -1,8 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """Automate git commits with AI-generated meaningful messages."""
 
+import json
 import os
+import re
 import sys
 import shutil
 import subprocess
@@ -11,6 +13,7 @@ import configparser
 import logging
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 try:
     from dotenv import load_dotenv
@@ -32,7 +35,7 @@ generate_commit_message_with_openai = lambda d, s, c: generate_openai_provider("
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-VERSION = "1.0.1"
+VERSION = "1.1.0"
 APP_DIR = Path(__file__).resolve().parent
 CONFIG_FILE = APP_DIR / "config.ini"
 ENV_FILE = APP_DIR / ".env"
@@ -182,7 +185,7 @@ def git_commit(message: str) -> bool:
 
 def git_push(branch: str) -> bool:
     try:
-        result = _git("push", "origin", branch)
+        result = _git("push", "-u", "origin", branch)
         if result.returncode == 0:
             print(f"✅ Changes pushed to branch {branch}")
             return True
@@ -191,6 +194,92 @@ def git_push(branch: str) -> bool:
     except Exception as e:
         print(f"❌ Error pushing changes: {e}")
         sys.exit(1)
+
+
+def get_current_branch() -> Optional[str]:
+    result = _git("branch", "--show-current")
+    branch = (result.stdout or "").strip()
+    return branch or None
+
+
+def resolve_push_branch(explicit: Optional[str]) -> Optional[str]:
+    """Resolve push target: -b override → current branch. Detached HEAD → None."""
+    if explicit:
+        return explicit
+    current = get_current_branch()
+    if current:
+        return current
+    print("⚠️ Detached HEAD — cannot determine branch for push")
+    return None
+
+
+def remote_branch_exists(name: str) -> bool:
+    return _git("rev-parse", "--verify", "--quiet", f"origin/{name}").returncode == 0
+
+
+def get_default_branch() -> str:
+    result = _git("symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+    if result.returncode == 0:
+        ref = (result.stdout or "").strip()
+        if ref.startswith("refs/remotes/origin/"):
+            return ref.rsplit("/", 1)[-1]
+    for name in ("main", "master"):
+        if remote_branch_exists(name):
+            return name
+    return "main"
+
+
+def github_repo_url() -> Optional[str]:
+    result = _git("remote", "get-url", "origin")
+    if result.returncode != 0:
+        return None
+    url = (result.stdout or "").strip().rstrip("/")
+    if url.endswith(".git"):
+        url = url[:-4]
+    # git@github.com:owner/repo | ssh://git@github.com/owner/repo | https://github.com/owner/repo
+    m = re.match(r"(?:git@github\.com:|ssh://git@github\.com/|https?://github\.com/)(.+)", url)
+    return f"https://github.com/{m.group(1)}" if m else None
+
+
+def resolve_pr_base(head: str) -> Optional[str]:
+    """BASE for compare/PR: feature→dev (or default), dev→default, production→None."""
+    default = get_default_branch()
+    if head in (default, "main", "master"):
+        return None
+    if head == "dev":
+        return default
+    if remote_branch_exists("dev"):
+        return "dev"
+    return default
+
+
+def _find_open_pr_url(head: str, base: str) -> Optional[str]:
+    try:
+        result = subprocess.run(
+            ["gh", "pr", "list", "--head", head, "--base", base, "--state", "open", "--json", "url"],
+            capture_output=True, encoding="utf-8", timeout=10,
+        )
+        if result.returncode != 0:
+            return None
+        data = json.loads(result.stdout or "[]")
+        return data[0].get("url") if data else None
+    except (FileNotFoundError, json.JSONDecodeError, subprocess.TimeoutExpired):
+        return None
+
+
+def print_deploy_link(head: str) -> None:
+    base = resolve_pr_base(head)
+    if not base:
+        return
+    repo = github_repo_url()
+    if not repo:
+        return
+    pr_url = _find_open_pr_url(head, base)
+    if pr_url:
+        print(f"🔗 {pr_url}")
+        return
+    # quote path segments so feature/foo works in compare URLs
+    print(f"🔗 {repo}/compare/{quote(base, safe='')}...{quote(head, safe='')}?expand=1")
 
 
 def generate_message_only(config: configparser.ConfigParser) -> str:
@@ -234,7 +323,8 @@ def _report_test(config: configparser.ConfigParser, *, setup: bool = False) -> N
         token, name = get_token(config, provider)
         print(f"✅ {'Token configured' if token else '❌ Token not configured'}: {name}")
         print(f"✅ Provider: {provider}")
-        print(f"✅ Default branch: {config['DEFAULT']['branch']}")
+        current = get_current_branch()
+        print(f"✅ Push branch: {current or 'n/a'} (current branch; config branch is unused for push)")
         print("\n🧪 Generating test message...")
     elif not get_token(config, provider)[0]:
         print("⚠️ API token not configured. Add it to config.ini or .env")
@@ -248,8 +338,9 @@ def _report_test(config: configparser.ConfigParser, *, setup: bool = False) -> N
 def main():
     parser = argparse.ArgumentParser(description="CommitPilot - automate git commits with AI-generated messages")
     parser.add_argument("-m", "--message", help="Custom commit message (disables AI generation)")
-    parser.add_argument("-b", "--branch", help="Branch for push (default from config)")
+    parser.add_argument("-b", "--branch", help="Override push branch (default: current branch)")
     parser.add_argument("-c", "--commit-only", action="store_true", help="Commit only, no push")
+    parser.add_argument("-d", "--deploy-link", action="store_true", help="Print PR/compare deploy link after push")
     parser.add_argument("-p", "--provider", choices=["huggingface", "openai", "aitunnel"], help="AI provider")
     parser.add_argument("--setup", action="store_true", help="Setup configuration")
     parser.add_argument("--get-message", action="store_true", help="Generate commit message only")
@@ -311,7 +402,9 @@ def main():
     print(f"📝 {commit_message}")
     git_commit(commit_message)
     if not args.commit_only:
-        git_push(args.branch or config["DEFAULT"]["branch"])
+        branch = resolve_push_branch(args.branch)
+        if branch and git_push(branch) and args.deploy_link:
+            print_deploy_link(branch)
 
 
 if __name__ == "__main__":

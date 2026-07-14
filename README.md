@@ -55,6 +55,8 @@ branch = master
 max_diff_size = 7000
 ```
 
+`branch` is **legacy** (kept for existing configs). Push always uses the **current git branch**, or `-b` to override.
+
 Tokens can also be set in `config.ini`, but `.env` takes priority for `AI_TUNNEL`.
 
 ## Usage
@@ -64,22 +66,35 @@ Run from **any git repository**:
 ```bash
 cd /path/to/your/project
 
-acommit              # git add, AI commit, push to default branch
+acommit              # git add, AI commit, push current branch
 acommit-here         # git add, AI commit, no push
-acommit-dev          # commit and push to dev
-acommit-main         # commit and push to main
-acommit-master       # commit and push to master
+acommit-dev          # commit and push to origin/dev (-b override)
+acommit-main         # commit and push to origin/main
+acommit-master       # commit and push to origin/master
 ```
 
 Short aliases (same commands):
 
 ```bash
-acum                 # same as acommit
-acm                  # same as acommit-here
-acmd                 # push to dev
-acmm                 # push to main
-acmmm                # push to master
+acum                 # same as acommit (push current branch)
+acm                  # same as acommit-here (commit only)
+acmd                 # push current branch + print PR/deploy link
+acmm                 # push to main (-b override)
+acmmm                # push to master (-b override)
 ```
+
+### Deploy link (`acmd` / `--deploy-link`)
+
+After a successful push, `acmd` prints a one-click URL:
+
+1. Open PR if `gh` finds one for this head/base → `https://github.com/.../pull/N`
+2. Otherwise → `https://github.com/.../compare/BASE...HEAD?expand=1` (Create PR form)
+
+BASE resolution:
+
+- feature branch → `dev` if it exists on remote, else default (`main`/`master`)
+- `dev` → default production branch
+- already on default branch → no link
 
 ### CLI options
 
@@ -87,7 +102,8 @@ acmmm                # push to master
 python /path/to/CommitPilot/auto_commit.py [options]
 
 -c, --commit-only    Commit without push
--b, --branch NAME    Push to branch (default from config.ini)
+-b, --branch NAME    Override push branch (default: current branch)
+-d, --deploy-link    Print PR/compare link after push
 -m, --message TEXT   Use custom message (skip AI)
 -p, --provider NAME  aitunnel | openai | huggingface
 --test               Check token and generate a test message
@@ -117,7 +133,8 @@ chmod +x /path/to/project/.git/hooks/prepare-commit-msg
 1. Read `git status` and `git diff`
 2. Send changes to the configured AI provider
 3. Run `git add .` and `git commit -m "..."`
-4. Optionally `git push origin <branch>`
+4. Optionally `git push -u origin <current-or--b-branch>`
+5. With `--deploy-link`, print PR or compare URL
 
 Default provider: AITUNNEL (OpenAI-compatible API).
 
