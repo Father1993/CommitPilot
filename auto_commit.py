@@ -204,8 +204,13 @@ def git_add_all() -> None:
 
 
 def git_commit(message: str) -> bool:
+    """Commit with subject; optional body after a blank line uses a second -m."""
     try:
-        result = _git("commit", "-m", message)
+        subject, sep, body = message.partition("\n\n")
+        args = ["commit", "-m", subject.strip()]
+        if sep and body.strip():
+            args.extend(["-m", body.strip()])
+        result = _git(*args)
         if result.returncode == 0:
             return True
         print(f"⚠️ Failed to create commit: {result.stderr}")
@@ -440,7 +445,7 @@ def main():
         status,
         config,
     )
-    print(f"📝 {commit_message}")
+    print("📝 " + commit_message.replace("\n", "\n   "))
     git_commit(commit_message)
     if not args.commit_only:
         branch = resolve_push_branch(args.branch)

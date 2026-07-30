@@ -261,6 +261,23 @@ def test_git_commit_success():
         assert result is True
 
 
+def test_git_commit_with_body():
+    """Subject + body becomes two -m arguments."""
+    with patch('subprocess.run') as mock_run:
+        mock_run.return_value.returncode = 0
+        msg = "feat(api): add rate limit\n\nProtect burst traffic on login."
+        assert auto_commit.git_commit(msg) is True
+        mock_run.assert_called_with(
+            [
+                'git', 'commit',
+                '-m', 'feat(api): add rate limit',
+                '-m', 'Protect burst traffic on login.',
+            ],
+            capture_output=True,
+            encoding='utf-8',
+        )
+
+
 def test_git_commit_failure():
     """Test error handling when commit creation fails."""
     with patch('subprocess.run') as mock_run:

@@ -17,14 +17,18 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 DEFAULT_COMMIT_MESSAGE = "chore: automatic changes commit"
-COMMIT_PREFIXES = frozenset(["feat", "fix", "docs", "style", "refactor", "test", "chore"])
+COMMIT_PREFIXES = frozenset(
+    ["feat", "fix", "docs", "style", "refactor", "test", "chore", "perf", "build", "ci"]
+)
+MAX_COMPLETION_TOKENS = 220
 HF_API_URL = (
     "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1"
 )
 SYSTEM_PROMPT = (
-    "You are an expert at creating high-quality commit messages in Conventional Commits format. "
-    "Your messages must be informative, specific, and understandable for both developers and AI "
-    "systems. Always use the format type(scope): description with specific details of changes."
+    "You write Conventional Commit messages for developers scanning git history. "
+    "Lead with intent (why), then what changed. Use concrete nouns from the diff "
+    "(modules, APIs, config keys, behaviors). Never invent changes absent from the diff. "
+    "Output only the commit message — no preamble, markdown fences, or quotes."
 )
 # OpenAI-protocol providers. "openai_compatible" = any host (RouterAI, OpenRouter, …).
 OPENAI_PROVIDERS = {
@@ -64,8 +68,35 @@ def truncate_diff(diff: str, config: configparser.ConfigParser, default_size: st
     return diff
 
 
+def changed_paths(status: str) -> list[str]:
+    """Parse `git status --porcelain` paths for prompt context."""
+    paths: list[str] = []
+    for line in status.splitlines():
+        if len(line) < 4:
+            continue
+        path = line[3:].strip()
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1].strip()
+        if path and path not in paths:
+            paths.append(path)
+    return paths
+
+
+def _is_conventional_subject(line: str) -> bool:
+    lower = line.lower()
+    return any(
+        lower.startswith(f"{prefix}:") or lower.startswith(f"{prefix}(")
+        for prefix in COMMIT_PREFIXES
+    )
+
+
 def build_user_prompt(status: str, diff: str) -> str:
-    return f"""Analyze the git changes and create a brief but informative commit message in Conventional Commits format.
+    paths = changed_paths(status)
+    paths_block = "\n".join(f"- {p}" for p in paths) if paths else "- (see status/diff)"
+    return f"""Write a Conventional Commits message for these changes.
+
+Changed paths:
+{paths_block}
 
 Git Status:
 {status}
@@ -73,55 +104,71 @@ Git Status:
 Git Diff:
 {diff}
 
-Message Requirements:
-1. Format: type(scope): brief description
-2. Type: feat, fix, docs, style, refactor, test, chore
-3. Scope: module/component that changed (optional but recommended)
-4. Description: what exactly changed and why (max 50 characters)
+Rules:
+1. First line: type(scope): subject
+   - type: feat | fix | docs | style | refactor | test | chore | perf | build | ci
+   - scope: short area from the paths (omit only if unclear)
+   - subject: imperative mood, max ~72 chars, concrete outcome — not "update X" / "rename Y"
+   - Prefer why/impact when visible in the diff (e.g. "so secrets stay out of git")
+2. Non-trivial changes (several files, behavior change, rename with ripple effects):
+   after a blank line, add 1–3 short body lines with why / impact / migration notes.
+   Skip the body for tiny one-file edits.
+3. English only. No markdown fences, quotes, or commentary outside the message.
 
-Good Examples:
-- feat(auth): add OAuth2 authentication flow
-- fix(api): resolve timeout error in user endpoint
-- docs(readme): update installation instructions
-- refactor(core): optimize database query performance
-- style(ui): improve button spacing and colors
+Good examples:
 
-Important:
-- Be specific: what changed, not just "update code"
-- Use scope for grouping related changes
-- Write in English
-- Avoid generic phrases like "update", "fix", "change"
-- Specify the exact functionality or issue
+feat(auth): add OAuth2 login for API clients
 
-Return only the commit message, without additional explanations."""
+fix(hooks): keep typed commit messages when regenerating
+Skip AI generation if the user already wrote a non-empty message.
+
+refactor(config): use openai_compatible for any OpenAI-protocol host
+Replace vendor-specific aitunnel keys with api_token, api_base_url, and api_model."""
 
 
 def extract_commit_message(raw: str) -> str:
-    message = raw.strip()
-    lines = message.split("\n")
-    for line in lines:
-        line_stripped = line.strip()
-        if any(line_stripped.startswith(prefix) for prefix in COMMIT_PREFIXES):
-            return line_stripped
-    for line in lines:
-        line_stripped = line.strip()
-        if line_stripped and not line_stripped.startswith("```"):
-            return line_stripped
-    logger.debug(f"Failed to find format in message: {message}")
-    return message
+    """Keep subject plus optional body; drop model preamble and fences."""
+    text = (raw or "").strip()
+    if not text:
+        return DEFAULT_COMMIT_MESSAGE
+
+    lines = [ln.rstrip() for ln in text.splitlines()]
+    lines = [ln for ln in lines if not ln.strip().startswith("```")]
+
+    start = next((i for i, ln in enumerate(lines) if _is_conventional_subject(ln.strip())), None)
+    if start is None:
+        for ln in lines:
+            s = ln.strip().strip("\"'")
+            if s:
+                return s
+        logger.debug(f"Failed to find format in message: {text}")
+        return text
+
+    block = lines[start:]
+    while block and not block[-1].strip():
+        block.pop()
+
+    # Cap body so chatty models do not flood the commit
+    subject = block[0].strip().strip("\"'")
+    body_lines: list[str] = []
+    if len(block) > 1:
+        rest = block[1:]
+        if rest and not rest[0].strip():
+            rest = rest[1:]
+        for ln in rest[:5]:
+            s = ln.strip()
+            if not s:
+                break
+            body_lines.append(s)
+
+    if not body_lines:
+        return subject
+    return subject + "\n\n" + "\n".join(body_lines)
 
 
 def _extract_hf_message(raw: str) -> str:
-    message = raw.replace("</s>", "").strip()
-    lines = message.split("\n")
-    for line in lines:
-        line = line.strip()
-        if line and any(line.startswith(prefix) for prefix in COMMIT_PREFIXES):
-            return line
-    for line in lines:
-        if line.strip():
-            return line.strip()
-    return message if message and "\n" not in message else DEFAULT_COMMIT_MESSAGE
+    message = extract_commit_message((raw or "").replace("</s>", ""))
+    return message or DEFAULT_COMMIT_MESSAGE
 
 
 def chat_completion(
@@ -138,14 +185,25 @@ def chat_completion(
     sdk_error: str | None = None,
 ) -> str:
     messages = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}]
-    payload = {"model": http_model or model, "messages": messages, "max_tokens": 100, "temperature": 0.3}
+    payload = {
+        "model": http_model or model,
+        "messages": messages,
+        "max_tokens": MAX_COMPLETION_TOKENS,
+        "temperature": 0.2,
+    }
 
     if OPENAI_SDK_AVAILABLE:
         try:
             logger.debug(sdk_log or f"Using OpenAI SDK for {api_name}...")
             client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
-            completion = client.chat.completions.create(model=model, messages=messages, max_tokens=100, temperature=0.3)
-            return extract_commit_message(completion.choices[0].message.content)
+            completion = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=MAX_COMPLETION_TOKENS,
+                temperature=0.2,
+            )
+            content = completion.choices[0].message.content or ""
+            return extract_commit_message(content)
         except Exception as e:
             logger.error(f"❌ Error using {sdk_error or api_name}: {e}")
             return DEFAULT_COMMIT_MESSAGE
@@ -211,29 +269,15 @@ def generate_huggingface(
     if len(diff) > max_size:
         diff = diff[:max_size] + "\n... (truncated)"
 
-    user_prompt = f"""Generate a commit message for the following changes:
-
-Git Status:
-{status}
-
-Git Diff (partial):
-{diff[:500]}...
-
-Instructions:
-- Create a single-line commit message in format: 'type(scope): message'
-- Choose 'type' from: feat, fix, docs, style, refactor, test, chore
-- Focus on WHAT changed and WHY
-- Keep it under 72 characters
-- Be specific and descriptive
-
-Format your response as just the commit message text without explanations.
-"""
-    system_prompt = (
-        "You are a helpful AI assistant that specializes in creating conventional commit messages."
-    )
+    user_prompt = build_user_prompt(status, diff[:500] + ("..." if len(diff) > 500 else ""))
     payload = {
-        "inputs": f"<s>[INST] {system_prompt} [/INST]</s>\n<s>[INST] {user_prompt} [/INST]",
-        "parameters": {"max_new_tokens": 100, "temperature": 0.2, "top_p": 0.95, "return_full_text": False},
+        "inputs": f"<s>[INST] {SYSTEM_PROMPT} [/INST]</s>\n<s>[INST] {user_prompt} [/INST]",
+        "parameters": {
+            "max_new_tokens": MAX_COMPLETION_TOKENS,
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "return_full_text": False,
+        },
     }
 
     try:
