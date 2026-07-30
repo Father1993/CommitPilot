@@ -26,19 +26,20 @@ SYSTEM_PROMPT = (
     "Your messages must be informative, specific, and understandable for both developers and AI "
     "systems. Always use the format type(scope): description with specific details of changes."
 )
+# OpenAI-protocol providers. "openai_compatible" = any host (RouterAI, OpenRouter, …).
 OPENAI_PROVIDERS = {
-    "aitunnel": {
-        "token_key": "aitunnel_token",
-        "missing_msg": "❌ AITUNNEL API token not configured. Update config file or .env file.",
-        "base_url_key": "aitunnel_base_url",
-        "base_url_default": "https://api.aitunnel.ru/v1/",
-        "model_key": "aitunnel_model",
+    "openai_compatible": {
+        "token_key": "api_token",
+        "missing_msg": "❌ API token not configured. Set API_TOKEN in .env or api_token in config.ini.",
+        "base_url_key": "api_base_url",
+        "base_url_default": "https://api.openai.com/v1",
+        "model_key": "api_model",
         "model_default": "gpt-4.1",
         "truncate_default": "5000",
         "timeout": 30,
-        "api_name": "AITUNNEL API",
-        "sdk_log": "Using OpenAI SDK for AITUNNEL API...",
-        "http_log": "Sending request to AITUNNEL API (HTTP)...",
+        "api_name": "OpenAI-compatible API",
+        "sdk_log": "Using OpenAI SDK (compatible provider)...",
+        "http_log": "Sending request to OpenAI-compatible API (HTTP)...",
     },
     "openai": {
         "token_key": "openai_token",

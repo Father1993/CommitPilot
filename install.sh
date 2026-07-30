@@ -149,7 +149,7 @@ else
     warn "Not a git repo. Install hook later: $PYTHON_CMD $AUTO_COMMIT --setup-hooks"
 fi
 
-if [ -f "$ENV_FILE" ] || grep -q 'aitunnel_token\s*=\s*\S' "$CONFIG_PATH" 2>/dev/null; then
+if [ -f "$ENV_FILE" ] || grep -qE '(api_token|aitunnel_token)\s*=\s*\S' "$CONFIG_PATH" 2>/dev/null; then
     warn "Testing message generation..."
     if "$PYTHON_CMD" "$AUTO_COMMIT" --test 2>/dev/null | grep -q 'Test message'; then
         info "[ok] API connection works"
@@ -157,7 +157,7 @@ if [ -f "$ENV_FILE" ] || grep -q 'aitunnel_token\s*=\s*\S' "$CONFIG_PATH" 2>/dev
         warn "Token found but test message failed. Run: acommit --test"
     fi
 else
-    warn "Add AI_TUNNEL to $ENV_FILE then run: acommit --test"
+    warn "Add API_TOKEN to $ENV_FILE then run: acommit --test"
 fi
 
 info "=================================================="

@@ -7,7 +7,7 @@ Automate git commits with AI-generated messages in [Conventional Commits](https:
 - Python 3.7+
 - Git
 - Bash (Git Bash on Windows)
-- API token: [AITUNNEL](https://aitunnel.ru/) (default), [OpenAI](https://platform.openai.com/api-keys), or [Hugging Face](https://huggingface.co/settings/tokens)
+- API token for an [OpenAI-compatible](https://platform.openai.com/docs/api-reference) host (default), [OpenAI](https://platform.openai.com/api-keys), or [Hugging Face](https://huggingface.co/settings/tokens)
 
 ## Install
 
@@ -34,15 +34,17 @@ All settings live in the **CommitPilot directory** (same folder as `auto_commit.
 Copy `.env.example` to `.env` and set your token:
 
 ```env
-AI_TUNNEL=sk-aitunnel-your-token-here
+API_TOKEN=your-token-here
 ```
 
-Optional overrides:
+Optional overrides for the OpenAI-compatible provider:
 
 ```env
-AITUNNEL_BASE_URL=https://api.aitunnel.ru/v1/
-AITUNNEL_MODEL=gpt-4.1
+API_BASE_URL=https://api.openai.com/v1
+API_MODEL=gpt-4.1
 ```
+
+Use any OpenAI-protocol host (`API_BASE_URL`): OpenRouter, RouterAI, a local gateway, etc.
 
 ### Non-secret settings
 
@@ -50,14 +52,18 @@ Edit `config.ini` (see `config.ini.example`):
 
 ```ini
 [DEFAULT]
-api_provider = aitunnel
+api_provider = openai_compatible
+api_base_url = https://api.openai.com/v1
+api_model = gpt-4.1
 branch = master
 max_diff_size = 7000
 ```
 
+Providers: `openai_compatible` (default), `openai`, `huggingface`.
+
 `branch` is **legacy** (kept for existing configs). Push always uses the **current git branch**, or `-b` to override.
 
-Tokens can also be set in `config.ini`, but `.env` takes priority for `AI_TUNNEL`.
+Tokens can also be set in `config.ini`, but `.env` takes priority for `API_TOKEN`.
 
 ## Usage
 
@@ -105,7 +111,7 @@ python /path/to/CommitPilot/auto_commit.py [options]
 -b, --branch NAME    Override push branch (default: current branch)
 -d, --deploy-link    Print PR/compare link after push
 -m, --message TEXT   Use custom message (skip AI)
--p, --provider NAME  aitunnel | openai | huggingface
+-p, --provider NAME  openai_compatible | openai | huggingface
 --test               Check token and generate a test message
 --get-message        Print generated message only
 --setup              Interactive setup
@@ -136,7 +142,7 @@ chmod +x /path/to/project/.git/hooks/prepare-commit-msg
 4. Optionally `git push -u origin <current-or--b-branch>`
 5. With `--deploy-link`, print PR or compare URL
 
-Default provider: AITUNNEL (OpenAI-compatible API).
+Default provider: `openai_compatible` (OpenAI SDK / HTTP with custom `api_base_url` + `api_model`).
 
 ## Troubleshooting
 
@@ -146,7 +152,7 @@ acommit --test
 
 | Problem | Fix |
 |---------|-----|
-| Token not configured | Add `AI_TUNNEL=...` to `CommitPilot/.env` |
+| Token not configured | Add `API_TOKEN=...` to `CommitPilot/.env` |
 | Aliases not found | Run `source ~/.bashrc` or open a new terminal |
 | No changes to commit | Make sure you are in a repo with uncommitted changes |
 | Hook not working | Set `COMMITPILOT_PATH` to the CommitPilot directory |

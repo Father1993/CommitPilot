@@ -20,10 +20,10 @@ def mock_config_file(tmp_path):
     """Create temporary configuration file for testing."""
     config_path = tmp_path / "config.ini"
     config_content = """[DEFAULT]
-api_provider = aitunnel
-aitunnel_token = test_token
-aitunnel_base_url = https://api.aitunnel.ru/v1/
-aitunnel_model = gpt-4.1
+api_provider = openai_compatible
+api_token = test_token
+api_base_url = https://api.openai.com/v1
+api_model = gpt-4.1
 huggingface_token = test_token
 openai_token = 
 branch = master
@@ -45,8 +45,8 @@ def test_setup_config_existing_file(mock_config_file):
         auto_commit._env_loaded = False
         
         config = auto_commit.setup_config()
-        assert config['DEFAULT']['api_provider'] == 'aitunnel'
-        assert config['DEFAULT']['aitunnel_token'] == 'test_token'
+        assert config['DEFAULT']['api_provider'] == 'openai_compatible'
+        assert config['DEFAULT']['api_token'] == 'test_token'
         assert config['DEFAULT']['branch'] == 'master'
         assert config['DEFAULT']['max_diff_size'] == '7000'
         
@@ -74,7 +74,7 @@ def test_setup_config_new_file(tmp_path):
         assert mock_config.exists()
         
         # Check default values
-        assert config['DEFAULT']['api_provider'] == 'aitunnel'
+        assert config['DEFAULT']['api_provider'] == 'openai_compatible'
         assert config['DEFAULT']['branch'] == 'master'
         assert config['DEFAULT']['max_diff_size'] == '7000'
 
@@ -86,9 +86,9 @@ def test_setup_config_env_variables(tmp_path):
     with patch('auto_commit.CONFIG_FILE', mock_config), \
          patch('auto_commit.load_dotenv'), \
          patch.dict(os.environ, {
-             'AI_TUNNEL': 'env_token',
-             'AITUNNEL_BASE_URL': 'https://custom.api.ru/v1/',
-             'AITUNNEL_MODEL': 'custom-model'
+             'API_TOKEN': 'env_token',
+             'API_BASE_URL': 'https://custom.api.ru/v1/',
+             'API_MODEL': 'custom-model'
          }, clear=True):
         auto_commit._config_cache = None
         auto_commit._config_file_mtime = None
@@ -97,16 +97,45 @@ def test_setup_config_env_variables(tmp_path):
         
         # Create a real config file for this test
         mock_config.write_text("""[DEFAULT]
-api_provider = aitunnel
-aitunnel_token = 
-aitunnel_base_url = https://api.aitunnel.ru/v1/
-aitunnel_model = gpt-4.1
+api_provider = openai_compatible
+api_token = 
+api_base_url = https://api.openai.com/v1
+api_model = gpt-4.1
 """)
         
         config = auto_commit.setup_config()
-        assert config['DEFAULT']['aitunnel_token'] == 'env_token'
-        assert config['DEFAULT']['aitunnel_base_url'] == 'https://custom.api.ru/v1/'
-        assert config['DEFAULT']['aitunnel_model'] == 'custom-model'
+        assert config['DEFAULT']['api_token'] == 'env_token'
+        assert config['DEFAULT']['api_base_url'] == 'https://custom.api.ru/v1/'
+        assert config['DEFAULT']['api_model'] == 'custom-model'
+
+
+def test_setup_config_legacy_aitunnel_keys(tmp_path):
+    """Legacy aitunnel_* keys and provider alias still work."""
+    mock_config = tmp_path / "legacy.ini"
+    mock_config.write_text("""[DEFAULT]
+api_provider = aitunnel
+aitunnel_token = legacy_token
+aitunnel_base_url = https://legacy.example/v1/
+aitunnel_model = legacy-model
+""")
+    with patch('auto_commit.CONFIG_FILE', mock_config), \
+         patch('auto_commit.load_dotenv'), \
+         patch.dict(os.environ, {}, clear=True):
+        auto_commit._config_cache = None
+        auto_commit._config_file_mtime = None
+        auto_commit._config_env_mtime = None
+        auto_commit._env_loaded = False
+
+        config = auto_commit.setup_config()
+        assert config['DEFAULT']['api_provider'] == 'openai_compatible'
+        assert config['DEFAULT']['api_token'] == 'legacy_token'
+        assert config['DEFAULT']['api_base_url'] == 'https://legacy.example/v1/'
+        assert config['DEFAULT']['api_model'] == 'legacy-model'
+
+
+def test_normalize_provider_alias():
+    assert auto_commit.normalize_provider('aitunnel') == 'openai_compatible'
+    assert auto_commit.normalize_provider('openai_compatible') == 'openai_compatible'
 
 
 def test_get_git_diff():
@@ -276,8 +305,8 @@ def test_generate_message_only_no_changes():
     """Test message generation when there are no changes."""
     mock_config = configparser.ConfigParser()
     mock_config['DEFAULT'] = {
-        'api_provider': 'aitunnel',
-        'aitunnel_token': '',
+        'api_provider': 'openai_compatible',
+        'api_token': '',
     }
     
     with patch('auto_commit.get_git_status', return_value=""):
@@ -291,8 +320,8 @@ def test_generate_message_only_empty_diff():
     """Test message generation when diff is empty."""
     mock_config = configparser.ConfigParser()
     mock_config['DEFAULT'] = {
-        'api_provider': 'aitunnel',
-        'aitunnel_token': '',
+        'api_provider': 'openai_compatible',
+        'api_token': '',
     }
     
     with patch('auto_commit.get_git_status', return_value="M file.txt"), \

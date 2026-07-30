@@ -29,7 +29,9 @@ from ai_common import (
 )
 
 generate_commit_message_with_huggingface = generate_huggingface
-generate_commit_message_with_aitunnel = lambda d, s, c: generate_openai_provider("aitunnel", d, s, c)
+generate_commit_message_with_openai_compatible = (
+    lambda d, s, c: generate_openai_provider("openai_compatible", d, s, c)
+)
 generate_commit_message_with_openai = lambda d, s, c: generate_openai_provider("openai", d, s, c)
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
@@ -39,26 +41,40 @@ VERSION = "1.1.0"
 APP_DIR = Path(__file__).resolve().parent
 CONFIG_FILE = APP_DIR / "config.ini"
 ENV_FILE = APP_DIR / ".env"
+
+# Env → config.ini (legacy first; modern names win if both are set)
 ENV_OVERRIDES = (
-    ("AI_TUNNEL", "aitunnel_token"),
-    ("AITUNNEL_BASE_URL", "aitunnel_base_url"),
-    ("AITUNNEL_MODEL", "aitunnel_model"),
+    ("AI_TUNNEL", "api_token"),
+    ("AITUNNEL_BASE_URL", "api_base_url"),
+    ("AITUNNEL_MODEL", "api_model"),
+    ("API_TOKEN", "api_token"),
+    ("API_BASE_URL", "api_base_url"),
+    ("API_MODEL", "api_model"),
 )
+PROVIDER_ALIASES = {
+    "aitunnel": "openai_compatible",
+}
 PROVIDER_TOKEN = {
-    "aitunnel": ("aitunnel_token", "AI_TUNNEL", "AITUNNEL"),
+    "openai_compatible": ("api_token", "API_TOKEN", "OpenAI-compatible"),
     "huggingface": ("huggingface_token", None, "Hugging Face"),
     "openai": ("openai_token", None, "OpenAI"),
 }
 DEFAULT_INI = {
-    "api_provider": "aitunnel",
-    "aitunnel_token": "",
-    "aitunnel_base_url": "https://api.aitunnel.ru/v1/",
-    "aitunnel_model": "gpt-4.1",
+    "api_provider": "openai_compatible",
+    "api_token": "",
+    "api_base_url": "https://api.openai.com/v1",
+    "api_model": "gpt-4.1",
     "huggingface_token": "",
     "openai_token": "",
     "branch": "master",
     "max_diff_size": "7000",
 }
+# Old config.ini keys → new (read-only migration when new key is empty)
+_LEGACY_INI_KEYS = (
+    ("aitunnel_token", "api_token"),
+    ("aitunnel_base_url", "api_base_url"),
+    ("aitunnel_model", "api_model"),
+)
 
 _config_cache: Optional[configparser.ConfigParser] = None
 _config_file_mtime: Optional[float] = None
@@ -105,14 +121,29 @@ def setup_config(force_reload: bool = False) -> configparser.ConfigParser:
 
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE)
+    defaults = config["DEFAULT"]
+
+    for old_key, new_key in _LEGACY_INI_KEYS:
+        if not defaults.get(new_key) and defaults.get(old_key):
+            defaults[new_key] = defaults.get(old_key)
+
+    provider = defaults.get("api_provider", "openai_compatible")
+    if provider in PROVIDER_ALIASES:
+        defaults["api_provider"] = PROVIDER_ALIASES[provider]
+
     for env_key, config_key in ENV_OVERRIDES:
         if env_value := os.getenv(env_key):
-            config["DEFAULT"][config_key] = env_value
+            defaults[config_key] = env_value
 
     _config_cache = config
     _config_file_mtime = config_mtime
     _config_env_mtime = env_mtime
     return config
+
+
+def normalize_provider(provider: str) -> str:
+    name = (provider or "openai_compatible").lower()
+    return PROVIDER_ALIASES.get(name, name)
 
 
 def _git(*args: str, check: bool = False) -> subprocess.CompletedProcess:
@@ -142,10 +173,11 @@ def get_git_status() -> str:
 
 
 def get_token(config: configparser.ConfigParser, provider: str) -> tuple[str, str]:
+    provider = normalize_provider(provider)
     config_key, env_key, name = PROVIDER_TOKEN.get(provider, (None, None, provider))
     token = config["DEFAULT"].get(config_key, "") if config_key else ""
     if env_key:
-        token = token or os.getenv(env_key, "")
+        token = token or os.getenv(env_key, "") or os.getenv("AI_TUNNEL", "")
     return token, name
 
 
@@ -157,7 +189,7 @@ def generate_commit_message(
     *,
     soft_fail: bool = False,
 ) -> str:
-    provider = provider.lower()
+    provider = normalize_provider(provider)
     if provider in OPENAI_PROVIDERS:
         return generate_openai_provider(provider, diff, status, config)
     return generate_huggingface(diff, status, config, soft_fail=soft_fail)
@@ -291,7 +323,7 @@ def generate_message_only(config: configparser.ConfigParser) -> str:
     if not diff:
         logger.warning("Empty diff, nothing to analyze")
         return DEFAULT_COMMIT_MESSAGE
-    provider = config["DEFAULT"].get("api_provider", "aitunnel")
+    provider = config["DEFAULT"].get("api_provider", "openai_compatible")
     logger.debug(f"Using AI provider: {provider}")
     return generate_commit_message(provider, diff, status, config, soft_fail=True)
 
@@ -318,7 +350,7 @@ def install_git_hooks() -> bool:
 
 
 def _report_test(config: configparser.ConfigParser, *, setup: bool = False) -> None:
-    provider = config["DEFAULT"].get("api_provider", "aitunnel")
+    provider = normalize_provider(config["DEFAULT"].get("api_provider", "openai_compatible"))
     if not setup:
         token, name = get_token(config, provider)
         print(f"✅ {'Token configured' if token else '❌ Token not configured'}: {name}")
@@ -341,7 +373,12 @@ def main():
     parser.add_argument("-b", "--branch", help="Override push branch (default: current branch)")
     parser.add_argument("-c", "--commit-only", action="store_true", help="Commit only, no push")
     parser.add_argument("-d", "--deploy-link", action="store_true", help="Print PR/compare deploy link after push")
-    parser.add_argument("-p", "--provider", choices=["huggingface", "openai", "aitunnel"], help="AI provider")
+    parser.add_argument(
+        "-p",
+        "--provider",
+        choices=["huggingface", "openai", "openai_compatible", "aitunnel"],
+        help="AI provider (aitunnel is an alias for openai_compatible)",
+    )
     parser.add_argument("--setup", action="store_true", help="Setup configuration")
     parser.add_argument("--get-message", action="store_true", help="Generate commit message only")
     parser.add_argument("--setup-hooks", action="store_true", help="Install Git hooks")
@@ -375,8 +412,9 @@ def main():
             setup_config()
         print("✅ Configuration file created")
         print(f"📝 Please edit {CONFIG_FILE} and add your API token")
-        print(f"   Or create {ENV_FILE} with: AI_TUNNEL=sk-aitunnel-your_token")
-        print("   Get AITUNNEL token: https://aitunnel.ru/")
+        print(f"   Or create {ENV_FILE} with: API_TOKEN=your_token")
+        print("   Optional: API_BASE_URL=...  API_MODEL=...")
+        print("   OpenAI-compatible hosts: any OpenAI-protocol API (OpenRouter, RouterAI, etc.)")
         print("   Get Hugging Face token: https://huggingface.co/settings/tokens")
         print("   Get OpenAI token: https://platform.openai.com/api-keys")
         if input("Install Git hooks for auto commit messages? (y/n): ").lower() == "y":
@@ -397,7 +435,10 @@ def main():
     git_add_all()
     diff = get_git_diff()
     commit_message = args.message or generate_commit_message(
-        args.provider or config["DEFAULT"].get("api_provider", "aitunnel"), diff, status, config
+        args.provider or config["DEFAULT"].get("api_provider", "openai_compatible"),
+        diff,
+        status,
+        config,
     )
     print(f"📝 {commit_message}")
     git_commit(commit_message)
